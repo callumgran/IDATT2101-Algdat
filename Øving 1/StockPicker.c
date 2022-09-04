@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#define SIZE (100 * 1000000)
+
 typedef struct vector {
     int size;
     int arr[];
@@ -9,8 +11,6 @@ typedef struct vector {
 
 
 //n is the number of price-changes and the size of the array.
-int n = 100000000; 
-
 clock_t t;
 int indexMaxTemp = 1;
 int indexMaxFinal = 1;
@@ -23,10 +23,18 @@ int minFinal = 0;
 int tempDif = 0;
 int maxDif = 0;
 int currVal = 0;
+int* data[SIZE];
 
 double RAND(double min, double max)
 {
     return (double)rand()/(double)RAND_MAX * (max - min) + min;
+}
+
+void fill()
+{
+    for (int i = 0; i < SIZE; i++) {
+        
+    }
 }
 
 void stockPicker(vector *stockChanges)
