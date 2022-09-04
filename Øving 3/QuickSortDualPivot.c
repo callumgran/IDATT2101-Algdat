@@ -5,7 +5,6 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <math.h>
 
 #define SIZE (500 * 1000000)
 #define RUN_INSERTION 70
