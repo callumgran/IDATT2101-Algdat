@@ -40,7 +40,6 @@ void* sort_thread(void* arg)
     n_threads -= 1;
     if (n_threads == 0) pthread_cond_signal(&t_cond);
     pthread_mutex_unlock(&t_mutex);
-    return NULL;
 }
 
 // void swap(int a, int b)
@@ -126,7 +125,6 @@ void sort(int* data, int len)
     int n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
     if (n_cpus > 0) max_threads = n_cpus * 2;
     else max_threads = 4;
-
     pthread_t thread;
     int** param = malloc(2 * sizeof(int*));
     param[0] = data;

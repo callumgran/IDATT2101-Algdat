@@ -36,7 +36,6 @@ void* sort_thread(void* arg)
     n_threads -= 1;
     if (n_threads == 0) pthread_cond_signal(&t_cond);
     pthread_mutex_unlock(&t_mutex);
-    return NULL;
 }
 
 // void swap(int a, int b)
