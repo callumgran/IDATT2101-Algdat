@@ -5,17 +5,11 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <math.h>
 
 #define SIZE (500 * 1000000)
 #define RUN_INSERTION 70
 #define swap(a, b) { int c = a; a = b; b = c; }
-#define median3sort(left, mid, right)           \
-    int* mid = left_0 + (right_0 - left_0) / 2; \
-    if (*left > *mid) {swap(*left, *mid);}      \
-    if (*mid > *right) {                        \
-        swap(*mid, *right);                     \
-        if(*left > *mid) swap(*left, *mid);     \
-    }                                           \
 
 int max_threads;
 int n_threads;
@@ -30,6 +24,8 @@ double RAND(double min, double max)
 {
     return (double)rand()/(double)RAND_MAX * (max - min) + min;
 }
+
+void sum_array(int* data, int *sum, int len);
 
 void* sort_thread(void* arg)
 {
@@ -63,58 +59,68 @@ void insertion_sort(int *left, int *right)
     }
 }
 
-// void median3sort(int* left, int* mid, int* right)
-// {
-//     if (*left > *mid) swap(*left, *mid);
-//     if (*mid > *right) {
-//         swap(*mid, *right);
-//         if(*left > *mid) swap(*left, *mid);
-//     }
-// }
-
-int* partition_standard(int* left_0, int* right_0) 
+int* partition_dual(int* left, int* right, int** lp)
 {
-    int* left = left_0 + 1; 
-    int* right = right_0;
-    // int* mid = left + (right - left) / 2;
-    median3sort(left_0, mid, right_0);
-    int piv = *mid;
-    *mid = *left;
-    *left = piv;
-    swap(*mid, *(right_0 - 1));
-    while (1) {
-        do left++; while (*left < piv);
-        do right--; while (*right > piv);
-        if (left >= right) break;
-        swap(*left, *right);
+    swap(*left, *(left + (right - left) / 3));
+    swap(*right, *(right - (right - left) / 3));
+    if (*left > *right) swap(*left, *right);
+    int* j = left + 1;
+    int* g = right - 1, *k = left + 1, p = *left, q = *right;
+    while (k <= g) {
+        if (*k < p) {
+            swap(*k, *j);
+            j++;
+        }
+        else if (*k >= q) {
+            while (*g > q && k < g) {g--;}
+            swap(*k, *g);
+            g--;
+            if (*k < p) {
+                swap(*k, *j);
+                j++;
+            }
+        }
+        k++;
     }
-    *(left_0 + 1) = *right;
-    *right = piv;
-    return right;
+    j--;
+    g++;
+    swap(*left, *j);
+    swap(*right, *g);
+    *lp = j;
+    return g;
 }
 
 void quicksort(int* left, int* right) {
     if (right - left >= RUN_INSERTION) {
-        int* piv = partition_standard(left, right);
+        int* lp;
+        int* hp = partition_dual(left, right, &lp);
         if (right - left > 300000 && n_threads < max_threads) {
             pthread_t thread;
             int** param = malloc(2 * sizeof(int*));
-            param[0] = piv + 1;
+            param[0] = hp + 1;
             param[1] = right;
             pthread_mutex_lock(&t_mutex);
             n_threads += 1;
             pthread_mutex_unlock(&t_mutex);
             pthread_create(&thread, NULL, sort_thread, param);
             param = malloc(2 * sizeof(int*));
+            param[0] = lp + 1;
+            param[1] = hp - 1;
+            pthread_mutex_lock(&t_mutex);
+            n_threads += 1;
+            pthread_mutex_unlock(&t_mutex);
+            pthread_create(&thread, NULL, sort_thread, param);
+            param = malloc(2 * sizeof(int*));
             param[0] = left;
-            param[1] = piv - 1;
+            param[1] = lp - 1;
             pthread_mutex_lock(&t_mutex);
             n_threads += 1;
             pthread_mutex_unlock(&t_mutex);
             pthread_create(&thread, NULL, sort_thread, param);
         } else {
-        quicksort(piv + 1, right);
-        quicksort(left, piv - 1);
+        quicksort(left, lp - 1);
+        quicksort(lp + 1, hp - 1);
+        quicksort(hp + 1, right);
         }
     } else {
         insertion_sort(left, right);
@@ -126,7 +132,6 @@ void sort(int* data, int len)
     int n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
     if (n_cpus > 0) max_threads = n_cpus * 2;
     else max_threads = 4;
-
     pthread_t thread;
     int** param = malloc(2 * sizeof(int*));
     param[0] = data;

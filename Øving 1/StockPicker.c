@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define SIZE (100 * 1000000)
+#define SIZE (8 * 1000000)
 
 typedef struct vector {
     int size;
@@ -44,7 +44,7 @@ void stockPicker(vector *stockChanges)
     maxFinal = currVal; 
     minTemp = currVal; 
     minFinal = currVal; 
-    int loopCounter = n + 1;
+    int loopCounter = SIZE + 1;
     for (int i = 1; i < loopCounter; i++) {
         if(currVal > maxTemp) { 
             maxTemp = currVal; 
@@ -69,8 +69,8 @@ void stockPicker(vector *stockChanges)
 int main() 
 {
     srand(time(NULL));
-    vector *stockChanges = (vector *)malloc(sizeof(vector *) + n * sizeof(int));
-    for (int i = 0; i < n; i++) {
+    vector *stockChanges = (vector *)malloc(sizeof(vector *) + SIZE * sizeof(int));
+    for (int i = 0; i < SIZE; i++) {
         stockChanges->arr + i;
         stockChanges->arr[i] = RAND(-10, 10);
     }
