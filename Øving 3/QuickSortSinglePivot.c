@@ -136,13 +136,48 @@ void sort(int* data, int len)
     pthread_mutex_unlock(&t_mutex);
 }
 
-void fill(int* data, int len) 
+void fill_random(int* data, int len) 
 {
     for (int i = 0; i < len; i++) {
         data[i] = rand();
     }
 }
 
+void fill_sorted(int* data, int len) 
+{
+    for (int i = 0; i < len; i++) {
+        data[i] = i;
+    }
+}
+
+void fill_reverse_sorted(int* data, int len) 
+{
+    for (int i = 0; i < len; i++) {
+        data[i] = len - i;
+    }
+}
+
+void fill_half_duplicates(int* data, int len) 
+{
+    int j = len / 2;
+    int k = len / 3;
+    for (int i = 0; i < len; i++) {
+        if (i % 2 == 0) {
+            data[i] = rand();
+        } else if (i % 3 == 0) {
+            data[i] = k;
+        } else {
+            data[i] = j;
+        }
+    }
+}
+
+void fill_small_range(int* data, int len)
+{
+    for (int i = 0; i < len; i++) {
+        data[i] = RAND(0, 5);
+    }
+}
 
 void test_sorted(int* data, int len) 
 {
@@ -170,14 +205,14 @@ void test_values(int sum1, int sum2)
     else printf("ERROR! The sum before sorting: %d is not equal to the sum after sorting %d\n", sum1, sum2);
 }
 
-int main()
+void run_sort_with_time(int* data, void (*func)(int*, int))
 {
     double elapsed;
     struct timespec start, finish;
     int sum_before, sum_after;
-    fill(data, SIZE);
+    func(data, SIZE);
     sum_array(data, &sum_before, SIZE);
-    printf("Started sorting %d million numbers. \n", SIZE/1000000);
+    printf("Started sorting\n");
     clock_gettime(CLOCK_MONOTONIC, &start);
     sort(data, SIZE);
     clock_gettime(CLOCK_MONOTONIC, &finish);
@@ -187,5 +222,33 @@ int main()
     test_sorted(data, SIZE);
     sum_array(data, &sum_after, SIZE);
     test_values(sum_before, sum_after);
+}
+
+int main()
+{
+    printf("--------------------------------------------------------\n");
+    printf("Random Numbers: %d million. \n", SIZE/1000000);
+    run_sort_with_time(data, &fill_random);
+    printf("--------------------------------------------------------\n\n");
+
+    printf("--------------------------------------------------------\n");
+    printf("Sorted Numbers: %d million. \n", SIZE/1000000);
+    run_sort_with_time(data, &fill_sorted);
+    printf("--------------------------------------------------------\n\n");
+
+    printf("--------------------------------------------------------\n");
+    printf("Reverse sorted Numbers: %d million. \n", SIZE/1000000);
+    run_sort_with_time(data, &fill_reverse_sorted);
+    printf("--------------------------------------------------------\n\n");
+
+    printf("--------------------------------------------------------\n");
+    printf("Half duplicates Numbers: %d million. \n", SIZE/1000000);
+    run_sort_with_time(data, &fill_half_duplicates);
+    printf("--------------------------------------------------------\n\n");
+
+    printf("--------------------------------------------------------\n");
+    printf("Low range Numbers: %d million. \n", SIZE/1000000);
+    run_sort_with_time(data, &fill_small_range);
+    printf("--------------------------------------------------------\n\n");
     return 0;
 }
