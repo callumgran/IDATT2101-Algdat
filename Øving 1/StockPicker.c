@@ -4,48 +4,34 @@
 
 #define SIZE (8 * 1000000)
 
-typedef struct vector {
-    int size;
-    int arr[];
-} vector;
-
-
-//n is the number of price-changes and the size of the array.
-clock_t t;
+int data[SIZE];
 int indexMaxTemp = 1;
 int indexMaxFinal = 1;
 int indexMinTemp = 1;
 int indexMinFinal = 1;
-int maxTemp = 0;
-int maxFinal = 0;
-int minTemp = 0;
-int minFinal = 0;
 int tempDif = 0;
 int maxDif = 0;
-int currVal = 0;
-int* data[SIZE];
+int minFinal = 0;
+int maxFinal = 0; 
 
 double RAND(double min, double max)
 {
     return (double)rand()/(double)RAND_MAX * (max - min) + min;
 }
 
-void fill()
+void fill(int* data, int len)
 {
-    for (int i = 0; i < SIZE; i++) {
-        
+    for (int i = 0; i < len; i++) {
+        data[i] = (int) RAND(-10, 10);
     }
 }
 
-void stockPicker(vector *stockChanges)
+void stockPicker(int* stockChanges)
 {
-    currVal = stockChanges->arr[0];
-    maxTemp = currVal; 
-    maxFinal = currVal; 
-    minTemp = currVal; 
-    minFinal = currVal; 
-    int loopCounter = SIZE + 1;
-    for (int i = 1; i < loopCounter; i++) {
+    int currVal = *stockChanges;
+    int minTemp = currVal; 
+    int maxTemp = currVal; 
+    for (int i = 1; i <= SIZE; i++) {
         if(currVal > maxTemp) { 
             maxTemp = currVal; 
             tempDif = maxTemp - minTemp; 
@@ -62,22 +48,18 @@ void stockPicker(vector *stockChanges)
             maxTemp = minTemp; 
             indexMinTemp = i; 
         }
-        currVal = currVal + stockChanges->arr[i + 1];
+        currVal = currVal + *(stockChanges + i + 1);
     }
 }
 
 int main() 
 {
+    clock_t t;
     srand(time(NULL));
-    vector *stockChanges = (vector *)malloc(sizeof(vector *) + SIZE * sizeof(int));
-    for (int i = 0; i < SIZE; i++) {
-        stockChanges->arr + i;
-        stockChanges->arr[i] = RAND(-10, 10);
-    }
+    fill(data, SIZE);
     t = clock();
-    stockPicker(stockChanges);
+    stockPicker(data);
     t = clock() - t;
-    free(stockChanges);
     double time_taken = ((double)t)/(CLOCKS_PER_SEC/1000);
     printf("Buy day: %d \n", indexMinFinal);
     printf("Buy value: %d \n", minFinal);

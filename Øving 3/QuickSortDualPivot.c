@@ -231,6 +231,7 @@ void run_sort_with_time(int* data, void (*func)(int*, int))
 
 int main()
 {
+    srand(time(NULL));
     printf("--------------------------------------------------------\n");
     printf("Random Numbers: %d million. \n", SIZE/1000000);
     run_sort_with_time(data, &fill_random);
