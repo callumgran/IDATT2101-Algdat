@@ -57,7 +57,7 @@ void insertion_sort(int *left, int *right)
     }
 }
 
-int* partition_dual(int* left, int* right, int** lp)
+void partition_dual(int* left, int* right, int** lp, int** hp)
 {
     swap(*left, *(left + (right - left) / 3));
     swap(*right, *(right - (right - left) / 3));
@@ -82,21 +82,19 @@ int* partition_dual(int* left, int* right, int** lp)
     }
     j--;
     g++;
-    swap(*left, *j);
-    swap(*right, *g);
-    *lp = j;
-    return g;
+    swap(*left, *j); swap(*right, *g);
+    *lp = j; *hp = g;
 }
 
 void quicksort(int* left, int* right) {
     if (right - left >= RUN_INSERTION) {
-        int* lp;
-        int* hp = partition_dual(left, right, &lp);
+        int* lp, * hp;
+        partition_dual(left, right, &lp, &hp);
         if (right - left > 300000 && n_threads < max_threads) {
             pthread_t thread;
             int** param = malloc(2 * sizeof(int*));
-            param[0] = hp + 1;
-            param[1] = right;
+            param[0] = left;
+            param[1] = lp - 1;
             pthread_mutex_lock(&t_mutex);
             n_threads += 1;
             pthread_mutex_unlock(&t_mutex);
@@ -109,8 +107,8 @@ void quicksort(int* left, int* right) {
             pthread_mutex_unlock(&t_mutex);
             pthread_create(&thread, NULL, sort_thread, param);
             param = malloc(2 * sizeof(int*));
-            param[0] = left;
-            param[1] = lp - 1;
+            param[0] = hp + 1;
+            param[1] = right;
             pthread_mutex_lock(&t_mutex);
             n_threads += 1;
             pthread_mutex_unlock(&t_mutex);
@@ -189,7 +187,6 @@ void test_sorted(int* data, int len)
     for (int i = 1; i < len; i++) {
         if (data[i] < data[i - 1]) {
             printf("ERROR! Array is not sorted.\n");
-            printf("%d and %d\n", data[i], data[i - 1]);
             break;
         }
         if (i == len - 1) printf("SUCCESS! Array is sorted.\n");

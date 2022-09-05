@@ -71,7 +71,7 @@ void insertion_sort(int *left, int *right)
 //     }
 // }
 
-int* partition_standard(int* left_0, int* right_0) 
+void partition_single(int* left_0, int* right_0, int** pivot) 
 {
     int* left = left_0 + 1; 
     int* right = right_0;
@@ -89,12 +89,13 @@ int* partition_standard(int* left_0, int* right_0)
     }
     *(left_0 + 1) = *right;
     *right = piv;
-    return right;
+    *pivot =  right;
 }
 
 void quicksort(int* left, int* right) {
     if (right - left >= RUN_INSERTION) {
-        int* piv = partition_standard(left, right);
+        int* piv;
+        partition_single(left, right, &piv);
         if (right - left > 300000 && n_threads < max_threads) {
             pthread_t thread;
             int** param = malloc(2 * sizeof(int*));
@@ -184,7 +185,6 @@ void test_sorted(int* data, int len)
     for (int i = 1; i < len; i++) {
         if (data[i] < data[i - 1]) {
             printf("ERROR! Array is not sorted.\n");
-            printf("%d and %d\n", data[i], data[i - 1]);
             break;
         }
         if (i == len - 1) printf("SUCCESS! Array is sorted.\n");
