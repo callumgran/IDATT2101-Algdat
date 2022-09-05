@@ -6,9 +6,14 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#define SIZE (500 * 1000000)
+#define SIZE (5 * 1000000)
 #define RUN_INSERTION 70
 #define swap(a, b) { int c = a; a = b; b = c; }
+
+#define dualmidpoint(left_0, right_0)                  \
+    swap(*left_0, *(left_0 + (right_0 - left_0) / 3));  \
+    swap(*right_0, *(right_0 - (right_0 - left_0) / 3));\
+    if (*left_0 > *right_0) swap(*left_0, *right_0);    \
 
 int max_threads;
 int n_threads;
@@ -57,33 +62,30 @@ void insertion_sort(int *left, int *right)
     }
 }
 
-void partition_dual(int* left, int* right, int** lp, int** hp)
+void partition_dual(int* left_0, int* right_0, int** lp, int** hp)
 {
-    swap(*left, *(left + (right - left) / 3));
-    swap(*right, *(right - (right - left) / 3));
-    if (*left > *right) swap(*left, *right);
-    int* j = left + 1;
-    int* g = right - 1, *k = left + 1, p = *left, q = *right;
-    while (k <= g) {
-        if (*k < p) {
-            swap(*k, *j);
-            j++;
+    dualmidpoint(left_0, right_0);
+    int* left = left_0 + 1;
+    int* right = right_0 - 1, *left_1 = left_0 + 1, left_0_val = *left_0, right_0_val = *right_0;
+    while (left_1 <= right) {
+        if (*left_1 < left_0_val) {                     
+            swap(*left_1, *left);                       
+            left++;                                     
+        } else if (*left_1 >= right_0_val) {
+            while (*right > right_0_val && left_1 < right) {right--;}
+            swap(*left_1, *right);
+            right--;
+            if (*left_1 < left_0_val) {                     
+                swap(*left_1, *left);                       
+                left++;                                     
+            }                                               
         }
-        else if (*k >= q) {
-            while (*g > q && k < g) {g--;}
-            swap(*k, *g);
-            g--;
-            if (*k < p) {
-                swap(*k, *j);
-                j++;
-            }
-        }
-        k++;
+        left_1++;
     }
-    j--;
-    g++;
-    swap(*left, *j); swap(*right, *g);
-    *lp = j; *hp = g;
+    left--;
+    right++;
+    swap(*left_0, *left); swap(*right_0, *right);
+    *lp = left; *hp = right;
 }
 
 void quicksort(int* left, int* right) {

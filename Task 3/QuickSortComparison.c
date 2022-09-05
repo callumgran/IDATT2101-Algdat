@@ -6,28 +6,31 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#define SIZE (5 * 1000000)
+#define SIZE (100 * 1000000)
 #define RUN_INSERTION 100 //This size is in reality 50 as it is checked by memory placement.
 #define swap(a, b) { int c = a; a = b; b = c; }
+#define divide_2(a) (a>>1)
+#define mult_2(a) (a<<1)
 
-#define median3sort(left, mid, right)           \
-    int* mid = left_0 + (right_0 - left_0) / 2; \
-    if (*left > *mid) {swap(*left, *mid);}      \
-    if (*mid > *right) {                        \
-        swap(*mid, *right);                     \
-        if(*left > *mid) swap(*left, *mid);     \
-    }                                           \
+#define median3sort(left, mid, right) {             \
+        if (*left > *mid) {swap(*left, *mid);}      \
+        if (*mid > *right) {                        \
+            swap(*mid, *right);                     \
+            if(*left > *mid) swap(*left, *mid);     \
+        }                                           \
+    }                                               \
 
-#define dualpartition(left_0, right_0)                  \
-    swap(*left_0, *(left_0 + (right_0 - left_0) / 3));  \
-    swap(*right_0, *(right_0 - (right_0 - left_0) / 3));\
-    if (*left_0 > *right_0) swap(*left_0, *right_0);    \
+#define dual_mid_point(left_0, right_0) {                       \
+        swap(*left_0, *(left_0 + (right_0 - left_0) / 3));      \
+        swap(*right_0, *(right_0 - (right_0 - left_0) / 3));    \
+        if (*left_0 > *right_0) swap(*left_0, *right_0);        \
+    }                                                           \
 
-#define swap_left1_left(left_1, left, left_0_val) \
-    if (*left_1 < left_0_val) {       \
-        swap(*left_1, *left);         \
-        left++;                       \
-    }                                 \
+#define allocate_thread_params(left, right, choice) {                           \
+        param[0] = left;                                                        \
+        param[1] = right;                                                       \
+        param[2] = (choice == single_choice) ? &single_choice : &dual_choice;   \
+    }                                                                           \
 
 int max_threads;
 int n_threads;
@@ -45,7 +48,7 @@ void quicksort_dual(int *left, int *right);
 
 double RAND(double min, double max)
 {
-    return (double)rand() / (double)RAND_MAX * (max - min) + min;
+    return (double)rand()/(double)RAND_MAX * (max - min) + min;
 }
 
 void *sort_thread(void *arg)
@@ -73,20 +76,11 @@ void insertion_sort(int *left, int *right)
     }
 }
 
-// void median3sort(int* left, int* mid, int* right)
-// {
-//     if (*left > *mid) swap(*left, *mid);
-//     if (*mid > *right) {
-//         swap(*mid, *right);
-//         if(*left > *mid) swap(*left, *mid);
-//     }
-// }
-
 void partition_single(int *left_0, int *right_0, int **pivot)
 {
     int *left = left_0 + 1;
     int *right = right_0;
-    // int* mid = left + (right - left) / 2;
+    int* mid = left_0 + divide_2(right_0 - left_0);
     median3sort(left_0, mid, right_0);
     int piv = *mid;
     *mid = *left;
@@ -105,16 +99,21 @@ void partition_single(int *left_0, int *right_0, int **pivot)
 
 void partition_dual(int* left_0, int* right_0, int** lp, int** hp)
 {
-    dualpartition(left_0, right_0);
+    dual_mid_point(left_0, right_0);
     int* left = left_0 + 1;
     int* right = right_0 - 1, *left_1 = left_0 + 1, left_0_val = *left_0, right_0_val = *right_0;
     while (left_1 <= right) {
-        swap_left1_left(left_1, left, left_0_val);
-        if (*left_1 >= right_0_val) {
+        if (*left_1 < left_0_val) {                     
+            swap(*left_1, *left);                       
+            left++;                                     
+        } else if (*left_1 >= right_0_val) {
             while (*right > right_0_val && left_1 < right) {right--;}
             swap(*left_1, *right);
             right--;
-            swap_left1_left(left_1, left, left_0_val);
+            if (*left_1 < left_0_val) {                     
+                swap(*left_1, *left);                       
+                left++;                                     
+            }                                               
         }
         left_1++;
     }
@@ -124,29 +123,25 @@ void partition_dual(int* left_0, int* right_0, int** lp, int** hp)
     *lp = left; *hp = right;
 }
 
+void create_thread(int* left, int* right, int choice)
+{
+    pthread_t thread;
+    int **param = malloc(3 * sizeof(int *));
+    allocate_thread_params(left, right, choice);
+    pthread_mutex_lock(&t_mutex);
+    n_threads += 1;
+    pthread_mutex_unlock(&t_mutex);
+    pthread_create(&thread, NULL, sort_thread, param);
+}
+
 void quicksort_single(int *left, int *right)
 {
     if (right - left >= RUN_INSERTION) {
         int *piv;
         partition_single(left, right, &piv);
         if (right - left > 300000 && n_threads < max_threads) {
-            pthread_t thread;
-            int **param = malloc(3 * sizeof(int *));
-            param[0] = piv + 1;
-            param[1] = right;
-            param[2] = &single_choice;
-            pthread_mutex_lock(&t_mutex);
-            n_threads += 1;
-            pthread_mutex_unlock(&t_mutex);
-            pthread_create(&thread, NULL, sort_thread, param);
-            param = malloc(3 * sizeof(int *));
-            param[0] = left;
-            param[1] = piv - 1;
-            param[2] = &single_choice;
-            pthread_mutex_lock(&t_mutex);
-            n_threads += 1;
-            pthread_mutex_unlock(&t_mutex);
-            pthread_create(&thread, NULL, sort_thread, param);
+            create_thread(left, piv - 1, single_choice);
+            create_thread(piv + 1, right, single_choice);
         }
         else {
             quicksort_single(piv + 1, right);
@@ -164,31 +159,9 @@ void quicksort_dual(int *left, int *right)
         int *lp, *hp;
         partition_dual(left, right, &lp, &hp);
         if (right - left > 300000 && n_threads < max_threads) {
-            pthread_t thread;
-            int **param = malloc(3 * sizeof(int *));
-            param[0] = left;
-            param[1] = lp - 1;
-            param[2] = &dual_choice;
-            pthread_mutex_lock(&t_mutex);
-            n_threads += 1;
-            pthread_mutex_unlock(&t_mutex);
-            pthread_create(&thread, NULL, sort_thread, param);
-            param = malloc(3 * sizeof(int *));
-            param[0] = lp + 1;
-            param[1] = hp - 1;
-            param[2] = &dual_choice;
-            pthread_mutex_lock(&t_mutex);
-            n_threads += 1;
-            pthread_mutex_unlock(&t_mutex);
-            pthread_create(&thread, NULL, sort_thread, param);
-            param = malloc(3 * sizeof(int *));
-            param[0] = hp + 1;
-            param[1] = right;
-            param[2] = &dual_choice;
-            pthread_mutex_lock(&t_mutex);
-            n_threads += 1;
-            pthread_mutex_unlock(&t_mutex);
-            pthread_create(&thread, NULL, sort_thread, param);
+            create_thread(left, lp - 1, dual_choice);
+            create_thread(lp + 1, hp - 1, dual_choice);
+            create_thread(hp + 1, right, dual_choice);
         }
         else {
             quicksort_dual(left, lp - 1);
@@ -201,16 +174,14 @@ void quicksort_dual(int *left, int *right)
     }
 }
 
-void sort(int *data, int len, int *choice)
+void sort(int *data, int len, int choice)
 {
     int n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-    if (n_cpus > 0) max_threads = n_cpus * 2;
+    if (n_cpus > 0) max_threads = mult_2(n_cpus);
     else max_threads = 4;
     pthread_t thread;
     int **param = malloc(3 * sizeof(int *));
-    param[0] = data;
-    param[1] = data + len - 1;
-    param[2] = choice;
+    allocate_thread_params(data, (data + len - 1), choice);
     n_threads = 1;
     pthread_create(&thread, NULL, sort_thread, param);
     pthread_mutex_lock(&t_mutex);
@@ -241,7 +212,7 @@ void fill_reverse_sorted(int *data, int len)
 
 void fill_half_random(int *data, int len)
 {
-    int j = len / 2;
+    int j = divide_2(2);
     int k = len / 3;
     for (int i = 0; i < len; i++) {
         if (i % 2 == 0) {
@@ -293,7 +264,7 @@ void test_values(int sum1, int sum2)
     else printf("ERROR! The sum before sorting: %d is not equal to the sum after sorting %d\n", sum1, sum2);
 }
 
-void run_sort_with_time(int *data, int *choice)
+void run_sort_with_time(int *data, int choice)
 {
     double elapsed;
     struct timespec start, finish;
@@ -320,10 +291,10 @@ int main()
     fill_random(data, SIZE);
     copy(data, copy_arr, SIZE);
     printf("Single Pivot: \n");
-    run_sort_with_time(copy_arr, &single_choice);
+    run_sort_with_time(copy_arr, single_choice);
     copy(data, copy_arr, SIZE);
     printf("\nDual Pivot: \n");
-    run_sort_with_time(copy_arr, &dual_choice);
+    run_sort_with_time(copy_arr, dual_choice);
     printf("--------------------------------------------------------\n\n");
 
     printf("--------------------------------------------------------\n");
@@ -331,10 +302,10 @@ int main()
     fill_sorted(data, SIZE);
     copy(data, copy_arr, SIZE);
     printf("Single Pivot: \n");
-    run_sort_with_time(copy_arr, &single_choice);
+    run_sort_with_time(copy_arr, single_choice);
     copy(data, copy_arr, SIZE);
     printf("\nDual Pivot: \n");
-    run_sort_with_time(copy_arr, &dual_choice);
+    run_sort_with_time(copy_arr, dual_choice);
     printf("--------------------------------------------------------\n\n");
 
     printf("--------------------------------------------------------\n");
@@ -342,10 +313,10 @@ int main()
     fill_reverse_sorted(data, SIZE);
     copy(data, copy_arr, SIZE);
     printf("Single Pivot: \n");
-    run_sort_with_time(copy_arr, &single_choice);
+    run_sort_with_time(copy_arr, single_choice);
     copy(data, copy_arr, SIZE);
     printf("\nDual Pivot: \n");
-    run_sort_with_time(copy_arr, &dual_choice);
+    run_sort_with_time(copy_arr, dual_choice);
     printf("--------------------------------------------------------\n\n");
 
     printf("--------------------------------------------------------\n");
@@ -353,10 +324,10 @@ int main()
     fill_half_random(data, SIZE);
     copy(data, copy_arr, SIZE);
     printf("Single Pivot: \n");
-    run_sort_with_time(copy_arr, &single_choice);
+    run_sort_with_time(copy_arr, single_choice);
     copy(data, copy_arr, SIZE);
     printf("\nDual Pivot: \n");
-    run_sort_with_time(copy_arr, &dual_choice);
+    run_sort_with_time(copy_arr, dual_choice);
     printf("--------------------------------------------------------\n\n");
 
     printf("--------------------------------------------------------\n");
@@ -364,10 +335,10 @@ int main()
     fill_small_range(data, SIZE);
     copy(data, copy_arr, SIZE);
     printf("Single Pivot: \n");
-    run_sort_with_time(copy_arr, &single_choice);
+    run_sort_with_time(copy_arr, single_choice);
     copy(data, copy_arr, SIZE);
     printf("\nDual Pivot: \n");
-    run_sort_with_time(copy_arr, &dual_choice);
+    run_sort_with_time(copy_arr, dual_choice);
     printf("--------------------------------------------------------\n\n");
     return 0;
 }
