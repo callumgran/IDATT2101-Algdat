@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define SIZE (8 * 1000000)
+#define SIZE (200 * 1000000)
 
 int data[SIZE];
 int indexMaxTemp = 1;

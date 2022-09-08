@@ -26,8 +26,21 @@
         if (*left_0 > *right_0) swap(*left_0, *right_0);        \
     }                                                           \
 
+#define allocate_thread_params(left, right, choice) {                           \
+        param[0] = left;                                                        \
+        param[1] = right;                                                       \
+        param[2] = (choice == single_choice) ? &single_choice : &dual_choice;   \
+    }                                                                           \
+
+int max_threads;
+int n_threads;
 int data[SIZE];
 int copy_arr[SIZE];
+int single_choice = 0;
+int dual_choice = 1;
+
+pthread_mutex_t t_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t t_cond = PTHREAD_COND_INITIALIZER;
 
 void quicksort_single(int *left, int *right);
 
@@ -36,6 +49,22 @@ void quicksort_dual(int *left, int *right);
 double RAND(double min, double max)
 {
     return (double)rand()/(double)RAND_MAX * (max - min) + min;
+}
+
+void *sort_thread(void *arg)
+{
+    int **partition = (int **)arg;
+    if (*partition[2] == 1){
+        quicksort_dual(partition[0], partition[1]);
+    }
+    else {
+        quicksort_single(partition[0], partition[1]);
+    }
+    free(arg);
+    pthread_mutex_lock(&t_mutex);
+    n_threads -= 1;
+    if (n_threads == 0) pthread_cond_signal(&t_cond);
+    pthread_mutex_unlock(&t_mutex);
 }
 
 void insertion_sort(int *left, int *right)
@@ -97,14 +126,32 @@ void partition_dual(int* left_0, int* right_0, int** lp, int** hp)
     *lp = left; *hp = right;
 }
 
+void create_thread(int* left, int* right, int choice)
+{
+    pthread_t thread;
+    int **param = malloc(3 * sizeof(int *));
+    allocate_thread_params(left, right, choice);
+    pthread_mutex_lock(&t_mutex);
+    n_threads += 1;
+    pthread_mutex_unlock(&t_mutex);
+    pthread_create(&thread, NULL, sort_thread, param);
+}
+
 void quicksort_single(int *left, int *right)
 {
     if (right - left >= RUN_INSERTION) {
         int *piv;
         partition_single(left, right, &piv);
-        quicksort_single(piv + 1, right);
-        quicksort_single(left, piv - 1);
-    } else {
+        if (right - left > 300000 && n_threads < max_threads) {
+            create_thread(left, piv - 1, single_choice);
+            create_thread(piv + 1, right, single_choice);
+        }
+        else {
+            quicksort_single(piv + 1, right);
+            quicksort_single(left, piv - 1);
+        }
+    }
+    else {
         insertion_sort(left, right);
     }
 }
@@ -114,12 +161,35 @@ void quicksort_dual(int *left, int *right)
     if (right - left >= RUN_INSERTION) {
         int *lp, *hp;
         partition_dual(left, right, &lp, &hp);
-        quicksort_dual(left, lp - 1);
-        quicksort_dual(lp + 1, hp - 1);
-        quicksort_dual(hp + 1, right);
-    } else {
+        if (right - left > 300000 && n_threads < max_threads) {
+            create_thread(left, lp - 1, dual_choice);
+            create_thread(lp + 1, hp - 1, dual_choice);
+            create_thread(hp + 1, right, dual_choice);
+        }
+        else {
+            quicksort_dual(left, lp - 1);
+            quicksort_dual(lp + 1, hp - 1);
+            quicksort_dual(hp + 1, right);
+        }
+    }
+    else {
         insertion_sort(left, right);
     }
+}
+
+void sort(int *data, int len, int choice)
+{
+    int n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+    if (n_cpus > 0) max_threads = mult_2(n_cpus);
+    else max_threads = 4;
+    pthread_t thread;
+    int **param = malloc(3 * sizeof(int *));
+    allocate_thread_params(data, (data + len - 1), choice);
+    n_threads = 1;
+    pthread_create(&thread, NULL, sort_thread, param);
+    pthread_mutex_lock(&t_mutex);
+    pthread_cond_wait(&t_cond, &t_mutex);
+    pthread_mutex_unlock(&t_mutex);
 }
 
 void fill_random(int *data, int len)
@@ -197,7 +267,7 @@ void test_values(int sum1, int sum2)
     else printf("ERROR! The sum before sorting: %d is not equal to the sum after sorting %d\n", sum1, sum2);
 }
 
-void run_sort_with_time(int *data, void (*func)(int*, int*))
+void run_sort_with_time(int *data, int choice)
 {
     double elapsed;
     struct timespec start, finish;
@@ -206,7 +276,7 @@ void run_sort_with_time(int *data, void (*func)(int*, int*))
     test_sorted(data, SIZE);
     printf("Started sorting\n");
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    func(data, data + SIZE - 1);
+    sort(data, SIZE, choice);
     clock_gettime(CLOCK_MONOTONIC_RAW, &finish);
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
@@ -224,10 +294,10 @@ int main()
     fill_random(data, SIZE);
     copy(data, copy_arr, SIZE);
     printf("Single Pivot: \n");
-    run_sort_with_time(copy_arr, &quicksort_single);
+    run_sort_with_time(copy_arr, single_choice);
     copy(data, copy_arr, SIZE);
     printf("\nDual Pivot: \n");
-    run_sort_with_time(copy_arr, &quicksort_dual);
+    run_sort_with_time(copy_arr, dual_choice);
     printf("--------------------------------------------------------\n\n");
 
     printf("--------------------------------------------------------\n");
@@ -235,10 +305,10 @@ int main()
     fill_sorted(data, SIZE);
     copy(data, copy_arr, SIZE);
     printf("Single Pivot: \n");
-    run_sort_with_time(copy_arr, &quicksort_single);
+    run_sort_with_time(copy_arr, single_choice);
     copy(data, copy_arr, SIZE);
     printf("\nDual Pivot: \n");
-    run_sort_with_time(copy_arr, &quicksort_dual);
+    run_sort_with_time(copy_arr, dual_choice);
     printf("--------------------------------------------------------\n\n");
 
     printf("--------------------------------------------------------\n");
@@ -246,10 +316,10 @@ int main()
     fill_reverse_sorted(data, SIZE);
     copy(data, copy_arr, SIZE);
     printf("Single Pivot: \n");
-    run_sort_with_time(copy_arr, &quicksort_single);
+    run_sort_with_time(copy_arr, single_choice);
     copy(data, copy_arr, SIZE);
     printf("\nDual Pivot: \n");
-    run_sort_with_time(copy_arr, &quicksort_dual);
+    run_sort_with_time(copy_arr, dual_choice);
     printf("--------------------------------------------------------\n\n");
 
     printf("--------------------------------------------------------\n");
@@ -257,10 +327,10 @@ int main()
     fill_half_random(data, SIZE);
     copy(data, copy_arr, SIZE);
     printf("Single Pivot: \n");
-    run_sort_with_time(copy_arr, &quicksort_single);
+    run_sort_with_time(copy_arr, single_choice);
     copy(data, copy_arr, SIZE);
     printf("\nDual Pivot: \n");
-    run_sort_with_time(copy_arr, &quicksort_dual);
+    run_sort_with_time(copy_arr, dual_choice);
     printf("--------------------------------------------------------\n\n");
 
     printf("--------------------------------------------------------\n");
@@ -268,10 +338,10 @@ int main()
     fill_small_range(data, SIZE);
     copy(data, copy_arr, SIZE);
     printf("Single Pivot: \n");
-    run_sort_with_time(copy_arr, &quicksort_single);
+    run_sort_with_time(copy_arr, single_choice);
     copy(data, copy_arr, SIZE);
     printf("\nDual Pivot: \n");
-    run_sort_with_time(copy_arr, &quicksort_dual);
+    run_sort_with_time(copy_arr, dual_choice);
     printf("--------------------------------------------------------\n\n");
     return 0;
 }
