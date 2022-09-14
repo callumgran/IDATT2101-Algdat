@@ -1,8 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
-
-#define replace_node(el21, el2) 
 
 typedef struct NodeStruct 
 {
@@ -64,17 +61,6 @@ Node* remove_node(DoublyLinked *l, Node* n)
     return n;
 }
 
-Node* find_nr(DoublyLinked *l, int nr)
-{
-    if(nr < l->size)
-    {
-        Node* this = l->head;
-        for (int i = 0; i < nr; ++i) this = this->next;
-        return this;
-    }
-    else return NULL;
-}
-
 void start(Iterator *iter, DoublyLinked* l)
 {
     iter->place = l->head;
@@ -83,12 +69,6 @@ void start(Iterator *iter, DoublyLinked* l)
 int end(Iterator *iter)
 {
     return !iter->place;
-}
-
-int findElement(Iterator *iter)
-{
-    if(!end(iter)) return iter->place->element;
-    else return (int) HUGE_VAL;
 }
 
 void next(Iterator *iter)
@@ -131,9 +111,8 @@ void swap_lists(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator
     DoublyLinked *temp = malloc(sizeof(DoublyLinked));
 
     int size_l1 = (*l1)->size + 1
-    , size_l2 = (*l2)->size + 1
-    , i;
-
+    , size_l2 = (*l2)->size + 1;
+    
     start(iter_a, *l2);
     while(!end(iter_a))
     {
