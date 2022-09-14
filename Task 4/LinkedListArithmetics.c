@@ -31,8 +31,6 @@ Node* new_node(int e, Node *n, Node* p)
 
 typedef void func_type(DoublyLinked*, Node*, int);
 
-void print_number(DoublyLinked *l);
-
 void add_first_pos(DoublyLinked *l, int value)
 {
     Node* new = new_node(value, l->head, NULL);
@@ -115,12 +113,6 @@ void swap_lists(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator
     DoublyLinked *temp = malloc(sizeof(DoublyLinked));
     int l1_size = (*l1)->size;
 
-    printf("\nNumber 1: \n");
-    print_number(*l1);
-    printf("\n Number 2: \n");
-    print_number(*l2);
-    printf("\n");
-
     start(iter_a, *l2);
     while(!end(iter_a))
     {
@@ -128,17 +120,11 @@ void swap_lists(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator
         next(iter_a);
     }
 
-    printf("\n Temp: \n");
-    print_number(*l2);
-    printf("\n");
-
     start(iter_a, *l2);
     start(iter_b, *l1);
     if ((*l2)->size > l1_size) {
         while ((*l2)->size > l1_size)
         {
-            printf("Size l2: %d\nSize l1: %d \n", (*l2)->size, l1_size);
-            printf("Number: %d\n", iter_a->place->element);
             if (!end(iter_b))
             {
                 iter_a->place->element = iter_b->place->element;
@@ -189,12 +175,6 @@ void arithmetic(DoublyLinked *l1, DoublyLinked *l2, func_type func)
         swap_lists(&l1, &l2, iter_a, iter_b);
         if (func == subtraction) sub_swapped = 1;
     }
-
-    printf("\nNumber 1: \n");
-    print_number(l1);
-    printf("\n Number 2: \n");
-    print_number(l2);
-    printf("\n");
 
     start(iter_a, l1);
     start(iter_b, l2);
