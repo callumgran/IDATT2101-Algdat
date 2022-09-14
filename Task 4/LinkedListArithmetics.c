@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <math.h>
 
+#define replace_node(el21, el2) 
+
 typedef struct NodeStruct 
 {
     int element;
@@ -14,7 +16,7 @@ typedef struct
     Node *head;
     Node *tail;
     int size;
-} DoubleLink;
+} DoublyLinked;
 
 typedef struct 
 {
@@ -30,7 +32,7 @@ Node* new_node(int e, Node *n, Node* p)
     return res;
 }
 
-void add_first_pos(DoubleLink *l, int value)
+void add_first_pos(DoublyLinked *l, int value)
 {
     Node* new = new_node(value, l->head, NULL);
     l->head = new;
@@ -39,7 +41,7 @@ void add_first_pos(DoubleLink *l, int value)
     l->size++;
 }
 
-void add_last_pos(DoubleLink *l, int value)
+void add_last_pos(DoublyLinked *l, int value)
 {
     Node* new = new_node(value, NULL, l->tail);
     if (l->tail) l->tail->next = new;
@@ -48,7 +50,7 @@ void add_last_pos(DoubleLink *l, int value)
     l->size++;
 }
 
-Node* remove_node(DoubleLink *l, Node* n)
+Node* remove_node(DoublyLinked *l, Node* n)
 {
     if(n->prev)
         n->prev->next = n->next;
@@ -62,7 +64,7 @@ Node* remove_node(DoubleLink *l, Node* n)
     return n;
 }
 
-Node* find_nr(DoubleLink *l, int nr)
+Node* find_nr(DoublyLinked *l, int nr)
 {
     if(nr < l->size)
     {
@@ -73,7 +75,7 @@ Node* find_nr(DoubleLink *l, int nr)
     else return NULL;
 }
 
-void start(Iterator *iter, DoubleLink* l)
+void start(Iterator *iter, DoublyLinked* l)
 {
     iter->place = l->head;
 }
@@ -95,7 +97,7 @@ void next(Iterator *iter)
         iter->place = iter->place->next;
 }
 
-void addition(DoubleLink *l, Node *a, int b) 
+void addition(DoublyLinked *l, Node *a, int b) 
 {
     a->element = a->element + b;
     if (a->element > 9)
@@ -109,7 +111,7 @@ void addition(DoubleLink *l, Node *a, int b)
     }
 }
 
-void subtraction(DoubleLink *l, Node *a, int b) 
+void subtraction(DoublyLinked *l, Node *a, int b) 
 {
     a->element = a->element - b;
     if (a->element < 0)
@@ -124,60 +126,60 @@ void subtraction(DoubleLink *l, Node *a, int b)
     }
 }
 
-void swap_lists(DoubleLink **l1, DoubleLink **l2)
+void swap_lists(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator *iter_b)
 {
-    DoubleLink *temp = malloc(sizeof(DoubleLink));
-    Iterator *iter_a = malloc(sizeof(Iterator))
-    , *iter_b = malloc(sizeof(Iterator));
+    DoublyLinked *temp = malloc(sizeof(DoublyLinked));
 
     int size_l1 = (*l1)->size + 1
     , size_l2 = (*l2)->size + 1
     , i;
 
     start(iter_a, *l2);
-    start(iter_b, *l1);
-
     while(!end(iter_a))
     {
         add_last_pos(temp, iter_a->place->element);
         next(iter_a);
     }
 
-    while (!end(iter_b))
+    start(iter_a, *l2);
+    start(iter_b, *l1);
+    while (!end(iter_a))
     {
-        add_last_pos(*l2, iter_b->place->element);
-        next(iter_b);
+        if (!end(iter_b))
+        {
+            iter_a->place->element = iter_b->place->element;
+            next(iter_b);
+        }
+        else remove_node(*l2, iter_a->place);
+        next(iter_a);
     }
 
     start(iter_a, temp);
-    while(!end(iter_a))
+    start(iter_b, *l1);
+    while (!end(iter_a))
     {
-        add_last_pos(*l1, iter_a->place->element);
+        if (!end(iter_b))
+        {
+            iter_b->place->element = iter_a->place->element;
+            next(iter_b);
+        }
+        else add_last_pos(*l1, iter_a->place->element);
         next(iter_a);
     }
-    
-    for (i = 0; i < size_l2; i++) 
-    {
-        remove_node(*l2, (*l2)->head);
-    }
-    for (i = 0; i < size_l1; i++) 
-    {
-        remove_node(*l1, (*l1)->head);
-    }
-    free(iter_a);
-    free(iter_b);
+
     free(temp);
 }
 
-void arithmetic(DoubleLink *l1, DoubleLink *l2, void (func)(DoubleLink*, Node*, int))
+void arithmetic(DoublyLinked *l1, DoublyLinked *l2, void (func)(DoublyLinked*, Node*, int))
 {
-    int i, place;
+    int i, place, sub_swapped = 0;
     Iterator *iter_a = malloc(sizeof(Iterator))
     , *iter_b = malloc(sizeof(Iterator));
 
-    if (func == addition && l2->size > l1->size) 
+    if (l2->size > l1->size || (l1->size == l2->size && l2->head->element > l1->head->element)) 
     {
-        swap_lists(&l1, &l2);
+        swap_lists(&l1, &l2, iter_a, iter_b);
+        if (func == subtraction) sub_swapped = 1;
     }
 
     start(iter_a, l1);
@@ -196,20 +198,33 @@ void arithmetic(DoubleLink *l1, DoubleLink *l2, void (func)(DoubleLink*, Node*, 
         next(iter_b);
     }
 
+    if (sub_swapped) l1->head->element = l1->head->element * -1;
+
     free(iter_a);
     free(iter_b);
 }
 
-void printDoubleLink(DoubleLink *l1, DoubleLink *l2, void (func)(DoubleLink*, Node*, int))
+
+void print_number(DoublyLinked *l)
 {
-    printf("Here is the answer\n");
-    arithmetic(l1, l2, func);
-    Node *cur = l1->head;
-    while (cur != NULL) 
+    Iterator *iter = malloc(sizeof(Iterator));
+    start(iter, l);
+    while (!(end(iter)))
     {
-        printf("%d", cur->element);
-        cur = cur->next;
+        printf("%d", iter->place->element);
+        next(iter);
     }
+    free(iter);
+}
+
+void print_result(DoublyLinked *l1, DoublyLinked *l2, void (func)(DoublyLinked*, Node*, int))
+{
+    print_number(l1);
+    printf("%s", func == addition ? " + " : " - ");
+    print_number(l2);
+    arithmetic(l1, l2, func);
+    printf(" = ");
+    print_number(l1);
     printf("\n");
 }
 
@@ -220,7 +235,7 @@ int main(int argc, char *argv[])
      * argv[2] = operator (+ or -)
      * argv[3] = second number
      */
-    void (*func)(DoubleLink*, Node*, int);
+    void (*func)(DoublyLinked*, Node*, int);
     if (argc != 4) 
     {
         fprintf(stderr, "wrong amount of input\n");
@@ -237,25 +252,20 @@ int main(int argc, char *argv[])
     {
         func = &addition;
     }
-    char c, c1, c2;
-    c1 = argv[1][0];
-    c2 = argv[3][0];
-    DoubleLink *a = malloc(sizeof(DoubleLink)), 
-    *b = malloc(sizeof(DoubleLink));
-    Node *a_head = new_node((int)c1 - '0', NULL, NULL);
-    Node *b_head = new_node((int)c2 - '0', NULL, NULL);
-    a->head = a_head;
-    a->tail = a_head;
-    b->head = b_head;
-    b->tail = b_head;
 
+    DoublyLinked *a = malloc(sizeof(DoublyLinked)), 
+    *b = malloc(sizeof(DoublyLinked));
+
+    char c;
+    add_last_pos(a, (int)*(argv[1]) - '0');
     while ((c = *(++argv[1])) != 0)
         add_last_pos(a, (int)c - '0');
 
+    add_last_pos(b, (int)*(argv[3]) - '0');
     while ((c = *(++argv[3])) != 0)
         add_last_pos(b, (int)c - '0');
     
-    printDoubleLink(a, b, func);
+    print_result(a, b, func);
     free(a);
     free(b);
 }
