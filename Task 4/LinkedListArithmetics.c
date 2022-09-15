@@ -110,7 +110,7 @@ void subtraction(DoublyLinked *l, Node *a, int b)
 
 void swap_lists(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator *iter_b)
 {
-    DoublyLinked *temp = malloc(sizeof(DoublyLinked));
+    DoublyLinked *temp = (DoublyLinked*)malloc(sizeof(DoublyLinked));
     int l1_size = (*l1)->size;
 
     start(iter_a, *l2);
@@ -167,8 +167,8 @@ void swap_lists(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator
 void arithmetic(DoublyLinked *l1, DoublyLinked *l2, func_type func)
 {
     int i, place, sub_swapped = 0;
-    Iterator *iter_a = malloc(sizeof(Iterator))
-    , *iter_b = malloc(sizeof(Iterator));
+    Iterator *iter_a = (Iterator*)malloc(sizeof(Iterator))
+    , *iter_b = (Iterator*)malloc(sizeof(Iterator));
 
     if (l2->size > l1->size || (l1->size == l2->size && l2->head->element > l1->head->element)) 
     {
@@ -201,7 +201,7 @@ void arithmetic(DoublyLinked *l1, DoublyLinked *l2, func_type func)
 
 void print_number(DoublyLinked *l)
 {
-    Iterator *iter = malloc(sizeof(Iterator));
+    Iterator *iter = (Iterator*)malloc(sizeof(Iterator));
     start(iter, l);
     while (!(end(iter)))
     {
@@ -247,8 +247,8 @@ int main(int argc, char *argv[])
         func = &addition;
     }
 
-    DoublyLinked *a = malloc(sizeof(DoublyLinked)), 
-    *b = malloc(sizeof(DoublyLinked));
+    DoublyLinked *a = (DoublyLinked*)malloc(sizeof(DoublyLinked)), 
+    *b = (DoublyLinked*)malloc(sizeof(DoublyLinked));
 
     char c;
     add_last_pos(a, (int)*(argv[1]) - '0');
