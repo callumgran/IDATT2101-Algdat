@@ -59,18 +59,6 @@ ListNode *new_char_node(int e, ListNode *n, ListNode *p)
     return res;
 }
 
-void add_first_pos(DoublyLinked *l, int value)
-{
-    ListNode *new = new_char_node(value, l->head, NULL);
-    l->head = new;
-
-    if (!l->tail)
-        l->tail = new;
-    else
-        new->next->prev = new;
-    l->size++;
-}
-
 void add_last_pos(DoublyLinked *l, int value)
 {
     ListNode *new = new_char_node(value, NULL, l->tail);
@@ -155,20 +143,6 @@ Tree *new_tree()
     return res;
 }
 
-int find_height(TreeNode *node)
-{
-    if (!node)
-        return -1;
-    else
-    {
-        int left_height = find_height(node->left);
-        int right_height = find_height(node->right);
-        if (left_height >= right_height)
-            return left_height + 1;
-        return right_height + 1;
-    }
-}
-
 void insert_node(Tree *tree, void *element, compare cmp)
 {
     if (!tree->root)
@@ -246,9 +220,9 @@ int compare_lists(void *element_1, void *element_2)
 
     while (!end(iter_b))
     {
-        if (iter_a->place->element < 0)
+        if (iter_a->place->element < 0) // Ikke ascii karakterer, typ ÆØÅ
             goto return_larger;
-        if (iter_b->place->element < 0)
+        if (iter_b->place->element < 0) // Ikke ascii karakterer, typ ÆØÅ
             goto return_smaller;
         a = tolower(iter_a->place->element);
         b = tolower(iter_b->place->element);
@@ -270,6 +244,8 @@ return_smaller:
     free(iter_b);
     return largest == 1 && largest != 0 ? -1 : 1;
 
+    free(iter_a);
+    free(iter_b);
     if (largest == 2)
         return -1;
     else if (largest == 1)
@@ -357,6 +333,7 @@ void node_to_output(void *element, void *output)
             level += 1;
             startplace += 1;
         }
+
     add_empty_nodes(this, level);
     }
 }
@@ -385,7 +362,7 @@ void print_result(Tree *tree)
 int main(int argc, char *argv[])
 {
     Tree *tree = new_tree();
-    DoublyLinked *a = (DoublyLinked *)malloc(sizeof(DoublyLinked));
+    DoublyLinked *a;
     int c;
 
     for (int i = 1; i < argc; i++)
@@ -399,8 +376,8 @@ int main(int argc, char *argv[])
         insert_node(tree, a, &compare_lists);
     }
 
-    printf("QUEUE size: %d\n", QUEUE_SIZE);
     print_result(tree);
-
+    free(a);
+    free(tree);
     return 0;
 }
