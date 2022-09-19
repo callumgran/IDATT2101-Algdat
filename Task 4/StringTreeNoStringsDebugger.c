@@ -287,7 +287,7 @@ void *next_in_queue(Queue *queue)
 
 void *level_order(Tree *tree, create_line_func handle_output, add_white_spaces init_output)
 {
-    Queue *queue = new_queue(10);
+    Queue *queue = new_queue(100);
     void *output = (void *)(malloc(sizeof(void)));
     init_output(&output);
     add_to_queue(queue, tree->root);
@@ -337,7 +337,7 @@ void node_to_output(void *element, void *output)
     int i = 0, whitespace = 0;
     static int nodes, startplace, level;
     
-    if (this && level < 4)
+    if (this && level < PRINT_HEIGHT)
     {
         DoublyLinked *temp = (DoublyLinked *)this->element,
                      **out = (DoublyLinked **)output;
