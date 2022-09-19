@@ -3,8 +3,9 @@
 #include <math.h>
 #include <ctype.h>
 
-#define LINE_WIDTH 64
-#define PRINT_HEIGHT 4
+#define LINE_WIDTH 64 // Width of each line
+#define PRINT_HEIGHT 4 // Lines to print of the tree
+#define QUEUE_SIZE (1 << PRINT_HEIGHT)
 
 typedef void create_line_func(void *, void *);
 typedef void add_white_spaces(void *);
@@ -196,7 +197,7 @@ void insert_node(Tree *tree, void *element, compare cmp)
 
 void *level_order(Tree *tree, create_line_func handle_output, add_white_spaces init_output)
 {
-    Queue *queue = new_queue(100);
+    Queue *queue = new_queue(QUEUE_SIZE);
     void *output = (void *)(malloc(sizeof(void)));
     init_output(&output);
     add_to_queue(queue, tree->root);
@@ -398,6 +399,7 @@ int main(int argc, char *argv[])
         insert_node(tree, a, &compare_lists);
     }
 
+    printf("QUEUE size: %d\n", QUEUE_SIZE);
     print_result(tree);
 
     return 0;
