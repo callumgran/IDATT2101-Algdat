@@ -4,8 +4,8 @@
 #include <ctype.h>
 
 #define LINE_WIDTH 64 // Width of each line
-#define PRINT_HEIGHT 4 // Lines to print of the tree
-#define QUEUE_SIZE (1 << PRINT_HEIGHT)
+#define PRINT_HEIGHT 5 // Lines to print of the tree
+#define QUEUE_SIZE (1<<PRINT_HEIGHT)
 
 typedef void create_line_func(void *, void *);
 typedef void add_white_spaces(void *);
