@@ -1,8 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <ctype.h>
 
-#define LINE_WIDTH 64
+#define LINE_WIDTH 128
 
 typedef void print_func(void *);
 typedef void create_line(void *, void *, int);
@@ -146,14 +147,14 @@ int find_depth(Node *node)
 
 int compare_lists(void *element_1, void *element_2)
 {
+    int a, b, largest;
     Iterator
         *iter_a = (Iterator *)malloc(sizeof(Iterator)),
         *iter_b = (Iterator *)malloc(sizeof(Iterator));
     DoublyLinked
         *l1 = (DoublyLinked *)element_1,
         *l2 = (DoublyLinked *)element_2;
-
-    int largest;
+    
     if (l1->size > l2->size)
     {
         largest = 1;
@@ -172,15 +173,34 @@ int compare_lists(void *element_1, void *element_2)
         start(iter_a, l2);
         start(iter_b, l1);
     }
+
     while (!end(iter_b))
     {
-        if (iter_a->place->element > iter_b->place->element)
-            return largest == 1 && largest != 0 ? 1 : -1;
-        else if (iter_a->place->element < iter_b->place->element)
-            return largest == 1 && largest != 0 ? -1 : 1;
+        
+        if (iter_a->place->element < 0)
+            goto return_larger;
+        if (iter_b->place->element < 0)
+            goto return_smaller;
+        a = tolower(iter_a->place->element);
+        b = tolower(iter_b->place->element);
+        if (a > b)
+            goto return_larger;
+        else if (a < b)
+            goto return_smaller;
         next(iter_a);
         next(iter_b);
     }
+
+    return_larger:
+        free(iter_a);
+        free(iter_b);
+        return largest == 1 && largest != 0 ? 1 : -1;
+        
+    return_smaller:
+        free(iter_a);
+        free(iter_b);
+        return largest == 1 && largest != 0 ? -1 : 1;
+
     if (largest == 2)
         return -1;
     else if (largest == 1)
@@ -260,7 +280,7 @@ void *check_queue(Queue *queue)
 
 void level_order(Tree *tree, create_line handle_output, print_func print_func)
 {
-    int prev_size = 0;
+    int prev_size = 0, level = 0;
     Queue *queue = new_queue(10);
     DoublyLinked *output = (DoublyLinked*)(malloc(sizeof(DoublyLinked)));
     add_to_queue(queue, tree->root);
@@ -269,16 +289,30 @@ void level_order(Tree *tree, create_line handle_output, print_func print_func)
         Node *this = (Node *)(next_in_queue(queue));
         if (this) 
         {
-            if (find_depth(this) == 5)
+            if (find_depth(this) == 4)
                 break;
-            handle_output(this->element, &output, find_depth(this));
-            if (output->size - prev_size >= 64)
+            if (find_depth(this) == level) 
             {
+                handle_output(this->element, &output, find_depth(this));
+                if (output->size - prev_size >= LINE_WIDTH)
+                {
+                    add_last_pos(output, (char)'\n');
+                    prev_size = output->size;
+                }
+            }
+            else
+            {
+                level++;
+                while (output->size - prev_size <= LINE_WIDTH)
+                {
+                    add_last_pos(output, (char)' ');
+                }
                 add_last_pos(output, (char)'\n');
                 prev_size = output->size;
+                handle_output(this->element, &output, find_depth(this));
             }
-            if(this->left) add_to_queue(queue, this->left);
-            if(this->right) add_to_queue(queue, this->right);
+            add_to_queue(queue, this->left);
+            add_to_queue(queue, this->right);
         }
     }
     free(queue);
@@ -313,7 +347,7 @@ void create_out(void *element, void *output, int level)
     free(iter);
 }
 
-void print_node(void *element)
+void print_tree(void *element)
 {
     Iterator *iter = (Iterator *)(malloc(sizeof(Iterator)));
     DoublyLinked *temp = (DoublyLinked *)element;
@@ -329,7 +363,7 @@ void print_node(void *element)
 
 void print_result(Tree *tree)
 {
-    level_order(tree, &create_out, &print_node);
+    level_order(tree, &create_out, &print_tree);
     printf("\n");
 }
 
@@ -343,7 +377,9 @@ int main(int argc, char *argv[])
         a = (DoublyLinked *)malloc(sizeof(DoublyLinked));
         add_last_pos(a, (char)*(argv[i]));
         while ((c = *(++argv[i])) != 0)
+        {
             add_last_pos(a, (char)c);
+        }
         insert_node(tree, a, &compare_lists);
     }
     print_result(tree);
