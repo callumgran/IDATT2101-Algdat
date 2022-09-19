@@ -6,7 +6,8 @@
 #define LINE_WIDTH 128
 
 typedef void print_func(void *);
-typedef void create_line(void *, void *, int);
+typedef void node_to_line_func(void *, void *, int);
+typedef void create_line_func(void *, void *, int, node_to_line_func*);
 typedef int key_type(void *);
 typedef int line_size(int);
 typedef int compare(void *, void *);
@@ -262,7 +263,7 @@ void *check_queue(Queue *queue)
     return queue->elements[queue->start];
 }
 
-void level_order(Tree *tree, create_line handle_output, print_func print_func)
+void level_order(Tree *tree, create_line_func handle_output, print_func print_func, node_to_line_func add_node)
 {
     int prev_size = 0, level = 0;
     Queue *queue = new_queue(10);
@@ -275,27 +276,7 @@ void level_order(Tree *tree, create_line handle_output, print_func print_func)
         {
             if (find_depth(this) == 4)
                 break;
-            if (find_depth(this) == level)
-            {
-                handle_output(this->element, &output, find_depth(this));
-                if (output->size - prev_size >= LINE_WIDTH)
-                {
-                    add_last_pos(output, (char)'\n');
-                    prev_size = output->size;
-                }
-            }
-            else
-            {
-                level++;
-                while (output->size - prev_size <= LINE_WIDTH)
-                {
-                    add_last_pos(output, (char)' ');
-                }
-                add_last_pos(output, (char)'\n');
-                prev_size = output->size;
-                handle_output(this->element, &output, find_depth(this));
-            }
-
+            handle_output(this->element, &output, find_depth(this), add_node);
             add_to_queue(queue, this->left);
             add_to_queue(queue, this->right);
         }
@@ -305,14 +286,12 @@ void level_order(Tree *tree, create_line handle_output, print_func print_func)
     print_func(output);
 }
 
-void create_out(void *element, void *output, int level)
+void add_node_to_print(void *element, void *output, int whitespace)
 {
     Iterator *iter = (Iterator *)(malloc(sizeof(Iterator)));
     DoublyLinked *temp = (DoublyLinked *)element, 
         **out = (DoublyLinked **)output;
-    int i = 0,
-        whitespace = (LINE_WIDTH - temp->size) / pow(2, level + 1);
-
+    int i = 0;
     if (whitespace % 2 != 0)
     {
         i = 1;
@@ -336,6 +315,39 @@ void create_out(void *element, void *output, int level)
     free(iter);
 }
 
+void create_out(void *element, void *output, int node_depth, node_to_line_func node_to_line)
+{
+    DoublyLinked *temp = (DoublyLinked *)element, 
+        **out = (DoublyLinked **)output;
+    static int prev_size,
+        level;
+    int whitespace;
+    if (node_depth == level)
+    {
+        whitespace = (LINE_WIDTH - temp->size) / pow(2, level + 1);
+        add_node_to_print(element, output, whitespace);
+
+        if ((*out)->size - prev_size >= LINE_WIDTH)
+        {
+            add_last_pos(*out, (char)'\n');
+            prev_size = (*out)->size;
+        }
+    }
+    else
+    {
+        level++;
+        while ((*out)->size - prev_size <= LINE_WIDTH)
+        {
+            add_last_pos(*out, (char)' ');
+        }
+        add_last_pos(*out, (char)'\n');
+        prev_size = (*out)->size;
+
+        whitespace = (LINE_WIDTH - temp->size) / pow(2, level + 1);
+        add_node_to_print(element, output, whitespace);
+    }
+}
+
 void print_tree(void *element)
 {
     Iterator *iter = (Iterator *)(malloc(sizeof(Iterator)));
@@ -354,7 +366,7 @@ void print_tree(void *element)
 
 void print_result(Tree *tree)
 {
-    level_order(tree, &create_out, &print_tree);
+    level_order(tree, &create_out, &print_tree, &add_node_to_print);
     printf("\n");
 }
 
