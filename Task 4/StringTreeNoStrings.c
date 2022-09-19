@@ -5,12 +5,12 @@
 
 #define LINE_WIDTH 128
 
-typedef void print_func(void *);
-typedef void node_to_line_func(void *, void *, int);
-typedef void create_line_func(void *, void *, int, node_to_line_func*);
+typedef void create_line_func(void *, void *, int *);
+typedef void add_white_spaces(void *, int);
 typedef int key_type(void *);
 typedef int line_size(int);
 typedef int compare(void *, void *);
+void print_tree(void *);
 
 typedef struct NodeStruct
 {
@@ -18,11 +18,11 @@ typedef struct NodeStruct
     struct NodeStruct *left;
     struct NodeStruct *right;
     struct NodeStruct *parent;
-} Node;
+} TreeNode;
 
 typedef struct
 {
-    Node *root;
+    TreeNode *root;
 } Tree;
 
 typedef struct
@@ -31,28 +31,28 @@ typedef struct
     int start, end, size, max;
 } Queue;
 
-typedef struct CharNode
+typedef struct ListNode
 {
-    char element;
-    struct CharNode *next;
-    struct CharNode *prev;
-} CharNode;
+    int element;
+    struct ListNode *next;
+    struct ListNode *prev;
+} ListNode;
 
 typedef struct
 {
-    CharNode *head;
-    CharNode *tail;
+    ListNode *head;
+    ListNode *tail;
     int size;
 } DoublyLinked;
 
 typedef struct
 {
-    CharNode *place;
+    ListNode *place;
 } Iterator;
 
-CharNode *new_char_node(char e, CharNode *n, CharNode *p)
+ListNode *new_char_node(char e, ListNode *n, ListNode *p)
 {
-    CharNode *res = (CharNode *)(malloc(sizeof(CharNode)));
+    ListNode *res = (ListNode *)(malloc(sizeof(ListNode)));
 
     res->element = e;
     res->next = n;
@@ -62,7 +62,7 @@ CharNode *new_char_node(char e, CharNode *n, CharNode *p)
 
 void add_first_pos(DoublyLinked *l, char value)
 {
-    CharNode *new = new_char_node(value, l->head, NULL);
+    ListNode *new = new_char_node(value, l->head, NULL);
     l->head = new;
 
     if (!l->tail)
@@ -74,14 +74,19 @@ void add_first_pos(DoublyLinked *l, char value)
 
 void add_last_pos(DoublyLinked *l, char value)
 {
-    CharNode *new = new_char_node(value, NULL, l->tail);
-    
+    ListNode *new = new_char_node(value, NULL, l->tail);
+
     if (l->tail)
         l->tail->next = new;
     else
         l->head = new;
     l->tail = new;
     l->size++;
+}
+
+int empty_list(DoublyLinked *l)
+{
+    return !l->size;
 }
 
 void start(Iterator *iter, DoublyLinked *l)
@@ -100,9 +105,9 @@ void next(Iterator *iter)
         iter->place = iter->place->next;
 }
 
-Node *new_node(void *element, Node *parent, Node *left, Node *right)
+TreeNode *new_node(void *element, TreeNode *parent, TreeNode *left, TreeNode *right)
 {
-    Node *res = (Node *)(malloc(sizeof(Node)));
+    TreeNode *res = (TreeNode *)(malloc(sizeof(TreeNode)));
     res->element = element;
     res->left = left;
     res->right = right;
@@ -117,7 +122,7 @@ Tree *new_tree()
     return res;
 }
 
-int find_depth(Node *node)
+int find_depth(TreeNode *node)
 {
     int d = -1;
     while (node)
@@ -199,8 +204,8 @@ void insert_node(Tree *tree, void *element, compare cmp)
         return;
     }
 
-    Node *node = tree->root;
-    Node *parent = NULL;
+    TreeNode *node = tree->root;
+    TreeNode *parent = NULL;
 
     while (node)
     {
@@ -263,110 +268,133 @@ void *check_queue(Queue *queue)
     return queue->elements[queue->start];
 }
 
-void level_order(Tree *tree, create_line_func handle_output, print_func print_func, node_to_line_func add_node)
+int find_height(TreeNode *node)
 {
-    int prev_size = 0, level = 0;
+    if (!node)
+        return -1;
+    else
+    {
+        int left_height = find_height(node->left);
+        int right_height = find_height(node->right);
+        if (left_height >= right_height)
+            return left_height + 1;
+        return right_height + 1;
+    }
+}
+
+void *level_order(Tree *tree, create_line_func handle_output, add_white_spaces init_output)
+{
+    int level = 0, height = find_height(tree->root);
     Queue *queue = new_queue(10);
-    DoublyLinked *output = (DoublyLinked *)(malloc(sizeof(DoublyLinked)));
+    void *output = (void *)(malloc(sizeof(void)));
+    init_output(&output, height);
     add_to_queue(queue, tree->root);
     while (!empty_queue(queue))
     {
-        Node *this = (Node *)(next_in_queue(queue));
-        if (this)
+        TreeNode *this = (TreeNode *)(next_in_queue(queue));
+        handle_output(this->element, &output, &level);
+        if (level < height)
         {
-            if (find_depth(this) == 4)
-                break;
-            handle_output(this->element, &output, find_depth(this), add_node);
+            DoublyLinked* empty_list = NULL;
+            if (!this->right)
+                this->right = new_node(empty_list, this, NULL, NULL);
+            if (!this->left)
+                this->left = new_node(empty_list, this, NULL, NULL);
+            
+        }
+        if (this->left)
             add_to_queue(queue, this->left);
+        if (this->right)
             add_to_queue(queue, this->right);
-        }
     }
-    
+
     free(queue);
-    print_func(output);
+    return output;
 }
 
-void add_node_to_print(void *element, void *output, int whitespace)
+void add_white_space(void *output, int tree_height)
 {
-    Iterator *iter = (Iterator *)(malloc(sizeof(Iterator)));
-    DoublyLinked *temp = (DoublyLinked *)element, 
-        **out = (DoublyLinked **)output;
-    int i = 0;
-    if (whitespace % 2 != 0)
+    DoublyLinked **out = (DoublyLinked **)output;
+    for (int i = 0; i <= tree_height; i++)
     {
-        i = 1;
-        add_first_pos(temp, (char)' ');
+        for (int j = 0; j < LINE_WIDTH; j++)
+            add_last_pos(*out, ' ');
+        add_last_pos(*out, '\n');
     }
-
-    while (i < whitespace)
-    {
-        add_first_pos(temp, (char)' ');
-        add_last_pos(temp, (char)' ');
-        i++;
-    }
-
-    start(iter, temp);
-    while (!end(iter))
-    {
-        add_last_pos(*out, (char)iter->place->element);
-        next(iter);
-    }
-
-    free(iter);
 }
 
-void create_out(void *element, void *output, int node_depth, node_to_line_func node_to_line)
+void node_to_output(void *element, void *output, int *level)
 {
-    DoublyLinked *temp = (DoublyLinked *)element, 
+    Iterator *iter_temp = (Iterator *)(malloc(sizeof(Iterator))),
+        *iter_out = (Iterator *)(malloc(sizeof(Iterator)));
+    DoublyLinked *temp = (DoublyLinked *)element,
         **out = (DoublyLinked **)output;
-    static int prev_size,
-        level;
-    int whitespace;
-    if (node_depth == level)
+    int i = 0, whitespace = 0, r_level = *level + 1;
+    static int nodes, startplace = 0;
+    if (temp)
     {
-        whitespace = (LINE_WIDTH - temp->size) / pow(2, level + 1);
-        add_node_to_print(element, output, whitespace);
-
-        if ((*out)->size - prev_size >= LINE_WIDTH)
+        if (temp->size % 2 != 0)
         {
-            add_last_pos(*out, (char)'\n');
-            prev_size = (*out)->size;
+            i = 1;
         }
+        whitespace = ((LINE_WIDTH)/pow(2, *level + 1)) - temp->size/2;
+        startplace += whitespace;
+        if (whitespace % 2 != 0)
+        {
+            whitespace += 1;
+        }
+        start(iter_temp, temp);
+        start(iter_out, *out);
+        while (i < startplace)
+        {
+            next(iter_out);
+            i++;
+        }
+        while (!end(iter_temp))
+        {
+            iter_out->place->element = iter_temp->place->element;
+            next(iter_out);
+            next(iter_temp);
+        }
+        free(iter_out);
+        free(iter_temp);
+        startplace = startplace + whitespace + temp->size;
     }
     else
     {
-        level++;
-        while ((*out)->size - prev_size <= LINE_WIDTH)
-        {
-            add_last_pos(*out, (char)' ');
-        }
-        add_last_pos(*out, (char)'\n');
-        prev_size = (*out)->size;
-
-        whitespace = (LINE_WIDTH - temp->size) / pow(2, level + 1);
-        add_node_to_print(element, output, whitespace);
+        startplace += (LINE_WIDTH)/pow(2, *level);
+    }
+    nodes++;
+    if (nodes == pow(2, *level))
+    {
+        if (startplace != r_level * LINE_WIDTH)
+            startplace = r_level * LINE_WIDTH + r_level;
+        nodes = 0;
+        *level += 1;
+        startplace += 1;
     }
 }
 
 void print_tree(void *element)
 {
     Iterator *iter = (Iterator *)(malloc(sizeof(Iterator)));
-    DoublyLinked *temp = (DoublyLinked *)element;
+    DoublyLinked *output = (DoublyLinked *)element;
 
-    start(iter, temp);
+    start(iter, output);
     while (!end(iter))
     {
-        printf("%c", (char)iter->place->element);
+        printf("%c", iter->place->element);
         next(iter);
     }
 
     printf("\n");
     free(iter);
+    free(element);
 }
 
 void print_result(Tree *tree)
 {
-    level_order(tree, &create_out, &print_tree, &add_node_to_print);
+    print_tree(level_order(tree, &node_to_output, &add_white_space));
     printf("\n");
 }
 
@@ -374,15 +402,15 @@ int main(int argc, char *argv[])
 {
     Tree *tree = new_tree();
     DoublyLinked *a = (DoublyLinked *)malloc(sizeof(DoublyLinked));
-    char c;
+    int c;
 
     for (int i = 1; i < argc; i++)
     {
         a = (DoublyLinked *)malloc(sizeof(DoublyLinked));
-        add_last_pos(a, (char)*(argv[i]));
+        add_last_pos(a, *(argv[i]));
         while ((c = *(++argv[i])) != 0)
         {
-            add_last_pos(a, (char)c);
+            add_last_pos(a, c);
         }
         insert_node(tree, a, &compare_lists);
     }

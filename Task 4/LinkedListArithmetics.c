@@ -99,7 +99,7 @@ void subtraction(DoublyLinked *l, Node *a, int b)
     if (a->element < 0)
     {
         a->element = a->element + 10;
-        subtraction(l, a->prev, 1);
+        subtraction(l, a->prev, 1); // 1, 1
         if (l->head->element == 0)
         {
             remove_node(l, l->head);
