@@ -99,7 +99,7 @@ void subtraction(DoublyLinked *l, Node *a, int b)
     if (a->element < 0)
     {
         a->element = a->element + 10;
-        subtraction(l, a->prev, 1); // 1, 1
+        subtraction(l, a->prev, 1);
         if (l->head->element == 0)
         {
             remove_node(l, l->head);
@@ -108,10 +108,25 @@ void subtraction(DoublyLinked *l, Node *a, int b)
     }
 }
 
-void swap_lists(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator *iter_b)
+void swap_lists_same_size(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator *iter_b)
+{
+    int c;
+    start(iter_a, *l2);
+    start(iter_b, *l1);
+    while(!end(iter_a))
+    {
+        c = iter_a->place->element;
+        iter_a->place->element = iter_b->place->element;
+        iter_b->place->element = c;
+        next(iter_a); next(iter_b);
+    }
+}
+
+void swap_lists_diff_size(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator *iter_b)
 {
     DoublyLinked *temp = (DoublyLinked*)malloc(sizeof(DoublyLinked));
-    int l1_size = (*l1)->size;
+    Iterator *iter_c = (Iterator*)malloc(sizeof(Iterator));
+    int l1_size = (*l1)->size, c;
 
     start(iter_a, *l2);
     while(!end(iter_a))
@@ -122,58 +137,44 @@ void swap_lists(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator
 
     start(iter_a, *l2);
     start(iter_b, *l1);
-    if ((*l2)->size > l1_size) {
-        while ((*l2)->size > l1_size)
-        {
-            if (!end(iter_b))
-            {
-                iter_a->place->element = iter_b->place->element;
-                next(iter_b);
-                next(iter_a);
-            }
-            else remove_node(*l2, (*l2)->tail);
-        }
-    } else 
-    {
-        while (!end(iter_a))
-        {
-            if (!end(iter_b))
-            {
-                iter_a->place->element = iter_b->place->element;
-                next(iter_b);
-            }
-            else remove_node(*l2, iter_a->place);
-            next(iter_a);
-        }
-    }
-    
-
-    start(iter_a, temp);
-    start(iter_b, *l1);
-    while (!end(iter_a))
+    start(iter_c, temp);
+    while (!end(iter_c))
     {
         if (!end(iter_b))
         {
-            iter_b->place->element = iter_a->place->element;
+            iter_a->place->element = iter_b->place->element;
+            iter_b->place->element = iter_c->place->element;
             next(iter_b);
         }
-        else add_last_pos(*l1, iter_a->place->element);
+        else 
+        {
+            if ((*l2)->size > l1_size)
+                remove_node(*l2, (*l2)->tail);
+            add_last_pos(*l1, iter_c->place->element);
+        }
         next(iter_a);
+        next(iter_c);
     }
 
+    free(iter_c);
     free(temp);
 }
 
 void arithmetic(DoublyLinked *l1, DoublyLinked *l2, func_type func)
 {
-    int i, place, sub_swapped = 0;
+    int i, place, sub_swapped = 1;
     Iterator *iter_a = (Iterator*)malloc(sizeof(Iterator))
     , *iter_b = (Iterator*)malloc(sizeof(Iterator));
-
-    if (l2->size > l1->size || (l1->size == l2->size && l2->head->element > l1->head->element)) 
+    
+    if (l2->size > l1->size) 
     {
-        swap_lists(&l1, &l2, iter_a, iter_b);
-        if (func == subtraction) sub_swapped = 1;
+        swap_lists_diff_size(&l1, &l2, iter_a, iter_b);
+        if (func == &subtraction) sub_swapped = -1;
+    }
+    else if (l1->size == l2->size && l2->head->element > l1->head->element)
+    {
+        swap_lists_same_size(&l1, &l2, iter_a, iter_b);
+        if (func == &subtraction) sub_swapped = -1;
     }
 
     start(iter_a, l1);
@@ -192,17 +193,23 @@ void arithmetic(DoublyLinked *l1, DoublyLinked *l2, func_type func)
         next(iter_b);
     }
 
-    if (sub_swapped) l1->head->element = l1->head->element * -1;
+    l1->head->element *= sub_swapped;
 
     free(iter_a);
     free(iter_b);
 }
 
-
-void print_number(DoublyLinked *l)
+void clean_print_number(DoublyLinked **l)
 {
     Iterator *iter = (Iterator*)malloc(sizeof(Iterator));
-    start(iter, l);
+    start(iter, *l);
+    while (iter->place->element == 0 && (*l)->size > 1)
+    {
+        next(iter);
+        remove_node(*l, iter->place->prev);
+        (*l)->head = iter->place;
+    }
+    start(iter, *l);
     while (!(end(iter)))
     {
         printf("%d", iter->place->element);
@@ -213,12 +220,12 @@ void print_number(DoublyLinked *l)
 
 void print_result(DoublyLinked *l1, DoublyLinked *l2, func_type func)
 {
-    print_number(l1);
+    clean_print_number(&l1);
     printf("%s", func == addition ? " + " : " - ");
-    print_number(l2);
+    clean_print_number(&l2);
     arithmetic(l1, l2, func);
     printf(" = ");
-    print_number(l1);
+    clean_print_number(&l1);
     printf("\n");
 }
 

@@ -3,8 +3,11 @@
 #include <math.h>
 #include <ctype.h>
 
-#define LINE_WIDTH 64 // Width of each line
-#define PRINT_HEIGHT 5 // Lines to print of the tree
+// With line width 3 * 64 line width and 3 spaces.
+// The tree still prints neatly with 6-7 levels.
+#define LINE_WIDTH (1 * 64) // Width of each line
+#define PRINT_HEIGHT 4 // Lines to print of the tree
+#define SPACE_BETWEEN_LEVELS 1 // The space between levels on the tree
 #define QUEUE_SIZE (1<<PRINT_HEIGHT)
 
 typedef void create_line_func(void *, void *);
@@ -220,9 +223,16 @@ int compare_lists(void *element_1, void *element_2)
 
     while (!end(iter_b))
     {
-        if (iter_a->place->element < 0) // Ikke ascii karakterer, typ ÆØÅ
+        if (iter_a->place->element < 0 && iter_b->place->element < 0) // Ikke ascii karakterer, typ ÆØÅ
+        {
+            if (iter_a->place->element < iter_b->place->element)
+                goto return_larger;
+            if (iter_a->place->element < iter_b->place->element)
+                goto return_smaller;
+        }
+        else if (iter_a->place->element < 0)
             goto return_larger;
-        if (iter_b->place->element < 0) // Ikke ascii karakterer, typ ÆØÅ
+        else if (iter_b->place->element < 0)
             goto return_smaller;
         a = tolower(iter_a->place->element);
         b = tolower(iter_b->place->element);
@@ -257,25 +267,24 @@ return_smaller:
 void add_white_space(void *output)
 {
     DoublyLinked **out = (DoublyLinked **)output;
-    for (int i = 0; i < PRINT_HEIGHT; i++)
+    int i, j;
+    for (i = 0; i < PRINT_HEIGHT; i++)
     {
-        for (int j = 0; j < LINE_WIDTH; j++)
+        for (j = 0; j < LINE_WIDTH; j++)
             add_last_pos(*out, ' ');
-        add_last_pos(*out, '\n');
+        for (j = 0; j < SPACE_BETWEEN_LEVELS; j++)
+            add_last_pos(*out, '\n');
     }
 }
 
-void add_empty_nodes(void *element, int level)
+void add_empty_nodes(void *element)
 {
     TreeNode *this = (TreeNode *)element;
     DoublyLinked *empty_list = NULL;
-    if (level < PRINT_HEIGHT) 
-    {
-        if (!this->right)
-            this->right = new_node(empty_list, this, NULL, NULL);
-        if (!this->left)
-            this->left = new_node(empty_list, this, NULL, NULL);
-    }
+    if (!this->right)
+        this->right = new_node(empty_list, this, NULL, NULL);
+    if (!this->left)
+        this->left = new_node(empty_list, this, NULL, NULL);
 }
 
 void node_to_output(void *element, void *output)
@@ -285,7 +294,6 @@ void node_to_output(void *element, void *output)
     TreeNode *this = (TreeNode *)element;
     int i = 0, whitespace = 0;
     static int nodes, startplace, level;
-    
     if (this && level < PRINT_HEIGHT)
     {
         DoublyLinked *temp = (DoublyLinked *)this->element,
@@ -327,14 +335,13 @@ void node_to_output(void *element, void *output)
 
         if (nodes == pow(2, level))
         {
-            if (startplace != (level + 1) * LINE_WIDTH + 1)
-                startplace = (level + 1) * LINE_WIDTH + level + 1;
             nodes = 0;
             level += 1;
-            startplace += 1;
+            if (startplace != level * (LINE_WIDTH + SPACE_BETWEEN_LEVELS))
+                startplace = level * (LINE_WIDTH + SPACE_BETWEEN_LEVELS);
         }
 
-    add_empty_nodes(this, level);
+    add_empty_nodes(this);
     }
 }
 
@@ -354,13 +361,13 @@ void print_tree(void *element)
     free(element);
 }
 
-void print_result(Tree *tree)
-{
-    print_tree(level_order(tree, &node_to_output, &add_white_space));
-}
-
 int main(int argc, char *argv[])
 {
+    if (argc < 2) 
+    {
+        fprintf(stderr, "You must input atleast one word.\n");
+        return 1;
+    }
     Tree *tree = new_tree();
     DoublyLinked *a;
     int c;
@@ -376,7 +383,7 @@ int main(int argc, char *argv[])
         insert_node(tree, a, &compare_lists);
     }
 
-    print_result(tree);
+    print_tree(level_order(tree, &node_to_output, &add_white_space));
     free(a);
     free(tree);
     return 0;
