@@ -66,6 +66,7 @@ class DoublyLinkedList
     public:
         DoublyLinkedList();
         ~DoublyLinkedList();
+        void add_first_pos(int value);
         void add_last_pos(int value);
         void set_head(ListNode *head);
         void set_tail(ListNode *tail);
@@ -73,8 +74,8 @@ class DoublyLinkedList
         ListNode *get_head();
         ListNode *get_tail();
         int get_size();
+        ListNode* remove_node(ListNode *n);
         void destroy_linked_list();
-        void add_last_pos(void* value);
 
     private:
         void destroy_linked_list(ListNode *node);
@@ -147,6 +148,29 @@ void DoublyLinkedList::add_last_pos(int value)
         this->set_head(node);
     this->set_tail(node);
     ++this->size;
+}
+
+void DoublyLinkedList::add_first_pos(int value)
+{
+    ListNode* node = new ListNode(value, this->head, NULL);
+    this->head = node;
+    if (this->tail == NULL) this->tail = node;
+    else node->get_next()->set_prev(node);
+    this->size++;
+}
+
+ListNode* DoublyLinkedList::remove_node(ListNode *n)
+{
+    if(n->get_prev() != NULL)
+        n->get_prev()->set_next(n->get_next());
+    else this->set_head(n->get_next());
+    if(n->get_next() != NULL)
+        n->get_next()->set_prev(n->get_prev());
+    else this->set_tail(n->get_prev());
+    n->set_next(NULL);
+    n->set_prev(NULL);
+    this->size--;
+    return n;
 }
 
 class Iterator

@@ -81,8 +81,8 @@ void next(Iterator *iter)
 
 void addition(DoublyLinked *l, Node *a, int b) 
 {
-    a->element = a->element + b; // 1 + 9
-    if (a->element > 9) // 10 > 9
+    a->element = a->element + b;
+    if (a->element > 9)
     {
         if (a->prev == NULL) 
         {
