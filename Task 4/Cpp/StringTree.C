@@ -76,9 +76,8 @@ return_smaller:
     return largest == 1 && largest != 0 ? -1 : 1;
 }
 
-void add_white_space(void *output)
+void add_white_space(DoublyLinkedList **out)
 {
-    DoublyLinkedList **out = static_cast<DoublyLinkedList **>(output);
     int i, j;
     for (i = 0; i < PRINT_HEIGHT; i++)
     {
@@ -99,18 +98,31 @@ void add_empty_nodes(void *element)
         curr->set_left(new TreeNode(empty_list, curr, NULL, NULL));
 }
 
-void node_to_output(void *element, void *output)
+void print_tree(void *element)
+{
+    Iterator *iter = new Iterator();
+    DoublyLinkedList *output = static_cast<DoublyLinkedList *>(element);
+    if (output->get_tail()->get_element() != '\n') output->add_last_pos('\n');
+    iter->start(output);
+    while (!iter->end())
+    {
+        printf("%c", iter->get_place()->get_element());
+        iter->next();
+    }
+}
+
+void node_to_output(void *element)
 {
     Iterator *iter_temp = new Iterator(),
              *iter_out = new Iterator();
     TreeNode *curr_node = static_cast<TreeNode *>(element);
     int i = 0, whitespace = 0;
     static int nodes, startplace, level;
+    static DoublyLinkedList *out = new DoublyLinkedList();
     if (curr_node && level < PRINT_HEIGHT)
     {
-        DoublyLinkedList *temp = static_cast<DoublyLinkedList *>(curr_node->get_element()),
-                     **out = static_cast<DoublyLinkedList **>(output);
-
+        DoublyLinkedList *temp = static_cast<DoublyLinkedList *>(curr_node->get_element());
+        if (level == 0) add_white_space(&out);
         if (temp != NULL)
         {
             if (temp->get_size() % 2 != 0)
@@ -122,7 +134,7 @@ void node_to_output(void *element, void *output)
             startplace += whitespace;
 
             iter_temp->start(temp);
-            iter_out->start(*out);
+            iter_out->start(out);
             while (i < startplace)
             {
                 iter_out->next();
@@ -152,18 +164,9 @@ void node_to_output(void *element, void *output)
         }
     add_empty_nodes(curr_node);
     }
-}
-
-void print_tree(void *element)
-{
-    Iterator *iter = new Iterator();
-    DoublyLinkedList *output = static_cast<DoublyLinkedList *>(element);
-    if (output->get_tail()->get_element() != '\n') output->add_last_pos('\n');
-    iter->start(output);
-    while (!iter->end())
-    {
-        printf("%c", iter->get_place()->get_element());
-        iter->next();
+    else if (out != NULL) {
+        print_tree(out);
+        out = NULL;
     }
 }
 
@@ -189,6 +192,6 @@ int main(int argc, char *argv[])
         tree->insert_node(a, &compare_lists);
     }
 
-    print_tree(tree->level_order(&node_to_output, &add_white_space));
+    tree->level_order(&node_to_output);
     return 0;
 }

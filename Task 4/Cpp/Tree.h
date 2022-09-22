@@ -3,8 +3,7 @@
 #include <stdlib.h>
 #include "Queue.h"
 
-typedef void create_line_func(void *, void *);
-typedef void add_white_spaces(void *);
+typedef void handle(void *);
 typedef int compare(void *, void *);
 
 class TreeNode
@@ -16,7 +15,6 @@ class TreeNode
         void set_right(TreeNode *right);
         void set_parent(TreeNode *parent);
         void set_element(void *element);
-        void set_self(TreeNode *node);
         TreeNode *get_left();
         TreeNode *get_right();
         TreeNode *get_parent();
@@ -60,14 +58,6 @@ TreeNode* TreeNode::get_parent()
     return this->parent;
 }
 
-void TreeNode::set_self(TreeNode *node)
-{
-    this->set_element(node->get_element());
-    this->set_left(node->get_left());
-    this->set_right(node->get_right());
-    this->set_parent(node->get_parent());
-}
-
 void TreeNode::set_element(void *element)
 {
     this->element = element;
@@ -95,7 +85,7 @@ class Tree
         ~Tree();
 
         void insert_node(void *element, compare cmp);
-        void *level_order(create_line_func handle_output, add_white_spaces init_output);
+        void level_order(handle handle);
         void destroy_tree();
         int find_height();
         void set_root(TreeNode* root);
@@ -144,23 +134,19 @@ int Tree::find_height()
     return find_height(this->root);
 }
 
-void *Tree::level_order(create_line_func handle_output, add_white_spaces init_output)
+void Tree::level_order(handle handle)
 {
     Queue *queue = new Queue(1<<find_height());
-    void *output = (void *)(malloc(sizeof(void*)));
-    init_output(&output);
     queue->add_to_queue(this->root);
     while (!queue->empty_queue())
     {
         TreeNode *curr = static_cast<TreeNode *>(queue->next_in_queue());
-        handle_output(curr, &output);
+        handle(curr);
         if (curr->get_left() != NULL)
             queue->add_to_queue(curr->get_left());
         if (curr->get_right() != NULL)
             queue->add_to_queue(curr->get_right());
     }
-
-    return output;
 }
 
 Tree::~Tree()
