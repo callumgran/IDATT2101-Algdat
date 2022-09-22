@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <DoublyLinkedList.h>
+#include "DoublyLinkedList.h"
 
 typedef void func_type(DoublyLinkedList*, ListNode*, int);
 
