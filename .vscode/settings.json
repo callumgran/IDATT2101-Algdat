@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "HermannKok.C": "cpp"
-    }
+        "HermannKok.C": "cpp",
+        "StringTree.C": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "Enabled"
 }

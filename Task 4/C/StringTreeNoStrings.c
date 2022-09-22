@@ -223,6 +223,9 @@ int compare_lists(void *element_1, void *element_2)
 
     while (!end(iter_b))
     {
+        printf("\nLargest: %d", largest);
+        printf("\nLargest list: %c", iter_a->place->element);
+        printf("\nSmallest list: %c", iter_b->place->element);
         if (iter_a->place->element < 0 && iter_b->place->element < 0) // Ikke ascii karakterer, typ ÆØÅ
         {
             if (iter_a->place->element < iter_b->place->element)
@@ -247,11 +250,13 @@ int compare_lists(void *element_1, void *element_2)
 return_larger:
     free(iter_a);
     free(iter_b);
+    printf("\n%c is before %c\n", b, a);
     return largest == 1 && largest != 0 ? 1 : -1;
 
 return_smaller:
     free(iter_a);
     free(iter_b);
+    printf("\n%c is before %c\n", a, b);
     return largest == 1 && largest != 0 ? -1 : 1;
 
     free(iter_a);
