@@ -1,5 +1,5 @@
-#ifndef DOUBLYLINKEDLIST_H
-#define DOUBLYLINKEDLIST_H
+#ifndef CPPDOUBLYLINKEDLIST_H
+#define CPPDOUBLYLINKEDLIST_H
 #include <stdlib.h>
 
 class ListNode

@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <math.h>
 #include <ctype.h>
+#include "Tree.h"
+#include "DoublyLinkedList.h"
 
 // With line width 3 * 64 line width and 3 spaces.
 // The tree still prints neatly with 6-7 levels.
@@ -10,197 +12,15 @@
 #define SPACE_BETWEEN_LEVELS 1 // The space between levels on the tree
 #define QUEUE_SIZE (1<<PRINT_HEIGHT)
 
-typedef void create_line_func(void *, void *);
-typedef void add_white_spaces(void *);
-typedef int compare(void *, void *);
-
-typedef struct NodeStruct
-{
-    void *element;
-    struct NodeStruct *left;
-    struct NodeStruct *right;
-    struct NodeStruct *parent;
-} TreeNode;
-
-typedef struct
-{
-    TreeNode *root;
-} Tree;
-
-typedef struct
-{
-    void **elements;
-    int start, end, size, max;
-} Queue;
-
-typedef struct ListNode
-{
-    int element;
-    struct ListNode *next;
-    struct ListNode *prev;
-} ListNode;
-
-typedef struct
-{
-    ListNode *head;
-    ListNode *tail;
-    int size;
-} DoublyLinked;
-
-typedef struct
-{
-    ListNode *place;
-} Iterator;
-
-ListNode *new_char_node(int e, ListNode *n, ListNode *p)
-{
-    ListNode *res = (ListNode *)(malloc(sizeof(ListNode)));
-
-    res->element = e;
-    res->next = n;
-    res->prev = p;
-    return res;
-}
-
-void add_last_pos(DoublyLinked *l, int value)
-{
-    ListNode *new = new_char_node(value, NULL, l->tail);
-
-    if (l->tail)
-        l->tail->next = new;
-    else
-        l->head = new;
-    l->tail = new;
-    l->size++;
-}
-
-void start(Iterator *iter, DoublyLinked *l)
-{
-    iter->place = l->head;
-}
-
-int end(Iterator *iter)
-{
-    return !iter->place;
-}
-
-void next(Iterator *iter)
-{
-    if (!end(iter))
-        iter->place = iter->place->next;
-}
-
-Queue *new_queue(int size)
-{
-    Queue *queue = (Queue *)(malloc(sizeof(Queue)));
-    queue->elements = (void *)(malloc(size * sizeof(void *)));
-    queue->max = size;
-    queue->start = queue->end = queue->size = 0;
-    return queue;
-}
-
-int empty_queue(Queue *queue)
-{
-    return !queue->size;
-}
-
-int full_queue(Queue *queue)
-{
-    return queue->size == queue->max;
-}
-
-void add_to_queue(Queue *queue, void *element)
-{
-    if (full_queue(queue))
-        return;
-    queue->elements[queue->end] = element;
-    queue->end = (queue->end + 1) % queue->max;
-    ++queue->size;
-}
-
-void *next_in_queue(Queue *queue)
-{
-    void *element;
-    if (empty_queue(queue))
-        return NULL;
-    element = queue->elements[queue->start];
-    queue->start = (queue->start + 1) % queue->max;
-    --queue->size;
-    return element;
-}
-
-TreeNode *new_node(void *element, TreeNode *parent, TreeNode *left, TreeNode *right)
-{
-    TreeNode *res = (TreeNode *)(malloc(sizeof(TreeNode)));
-    res->element = element;
-    res->left = left;
-    res->right = right;
-    res->parent = parent;
-    return res;
-}
-
-Tree *new_tree()
-{
-    Tree *res = (Tree *)(malloc(sizeof(Tree)));
-    res->root = NULL;
-    return res;
-}
-
-void insert_node(Tree *tree, void *element, compare cmp)
-{
-    if (!tree->root)
-    {
-        tree->root = new_node(element, NULL, NULL, NULL);
-        return;
-    }
-
-    TreeNode *node = tree->root;
-    TreeNode *parent = NULL;
-
-    while (node)
-    {
-        parent = node;
-        if (cmp(element, parent->element) <= 0)
-            node = node->left;
-        else
-            node = node->right;
-    }
-
-    if (cmp(element, parent->element) <= 0)
-        parent->left = new_node(element, parent, NULL, NULL);
-    else
-        parent->right = new_node(element, parent, NULL, NULL);
-}
-
-void *level_order(Tree *tree, create_line_func handle_output, add_white_spaces init_output)
-{
-    Queue *queue = new_queue(QUEUE_SIZE);
-    void *output = (void *)(malloc(sizeof(void)));
-    init_output(&output);
-    add_to_queue(queue, tree->root);
-    while (!empty_queue(queue))
-    {
-        TreeNode *this = (TreeNode *)(next_in_queue(queue));
-        handle_output(this, &output);
-        if (this->left)
-            add_to_queue(queue, this->left);
-        if (this->right)
-            add_to_queue(queue, this->right);
-    }
-
-    free(queue);
-    return output;
-}
-
 int compare_lists(void *element_1, void *element_2)
 {
     int a, b, largest;
     Iterator
         *iter_a = (Iterator *)malloc(sizeof(Iterator)),
         *iter_b = (Iterator *)malloc(sizeof(Iterator));
-    DoublyLinked
-        *l1 = (DoublyLinked *)element_1,
-        *l2 = (DoublyLinked *)element_2;
+    DoublyLinkedList
+        *l1 = (DoublyLinkedList *)element_1,
+        *l2 = (DoublyLinkedList *)element_2;
 
     if (l1->size > l2->size)
     {
@@ -223,10 +43,7 @@ int compare_lists(void *element_1, void *element_2)
 
     while (!end(iter_b))
     {
-        printf("\nLargest: %d", largest);
-        printf("\nLargest list: %c", iter_a->place->element);
-        printf("\nSmallest list: %c", iter_b->place->element);
-        if (iter_a->place->element < 0 && iter_b->place->element < 0) // Ikke ascii karakterer, typ ÆØÅ
+        if (iter_a->place->element < 0 && iter_b->place->element < 0)
         {
             if (iter_a->place->element < iter_b->place->element)
                 goto return_larger;
@@ -250,13 +67,11 @@ int compare_lists(void *element_1, void *element_2)
 return_larger:
     free(iter_a);
     free(iter_b);
-    printf("\n%c is before %c\n", b, a);
     return largest == 1 && largest != 0 ? 1 : -1;
 
 return_smaller:
     free(iter_a);
     free(iter_b);
-    printf("\n%c is before %c\n", a, b);
     return largest == 1 && largest != 0 ? -1 : 1;
 
     free(iter_a);
@@ -269,9 +84,8 @@ return_smaller:
         return 0;
 }
 
-void add_white_space(void *output)
+void add_white_space(DoublyLinkedList **out)
 {
-    DoublyLinked **out = (DoublyLinked **)output;
     int i, j;
     for (i = 0; i < PRINT_HEIGHT; i++)
     {
@@ -282,28 +96,45 @@ void add_white_space(void *output)
     }
 }
 
-void add_empty_nodes(void *element)
+void add_empty_nodes(TreeNode *element)
 {
-    TreeNode *this = (TreeNode *)element;
-    DoublyLinked *empty_list = NULL;
-    if (!this->right)
-        this->right = new_node(empty_list, this, NULL, NULL);
-    if (!this->left)
-        this->left = new_node(empty_list, this, NULL, NULL);
+    DoublyLinkedList *empty_list = NULL;
+    if (!element->right)
+        element->right = new_tree_node(empty_list, element, NULL, NULL);
+    if (!element->left)
+        element->left = new_tree_node(empty_list, element, NULL, NULL);
 }
 
-void node_to_output(void *element, void *output)
+void print_output(DoublyLinkedList *output)
+{
+    Iterator *iter = (Iterator *)(malloc(sizeof(Iterator)));
+    if (output->tail->element != '\n') add_last_pos(output, '\n');
+    start(iter, output);
+    while (!end(iter))
+    {
+        printf("%c", iter->place->element);
+        next(iter);
+    }
+
+    free(iter);
+    free(output);
+}
+
+void node_to_output(void *element)
 {
     Iterator *iter_temp = (Iterator *)(malloc(sizeof(Iterator))),
              *iter_out = (Iterator *)(malloc(sizeof(Iterator)));
     TreeNode *this = (TreeNode *)element;
     int i = 0, whitespace = 0;
     static int nodes, startplace, level;
+    static DoublyLinkedList *out;
+    if(level == 0) {
+        out = (DoublyLinkedList *)(malloc(sizeof(DoublyLinkedList)));
+        add_white_space(&out);
+    }
     if (this && level < PRINT_HEIGHT)
     {
-        DoublyLinked *temp = (DoublyLinked *)this->element,
-                     **out = (DoublyLinked **)output;
-
+        DoublyLinkedList *temp = (DoublyLinkedList *)this->element;
         if (temp)
         {
             if (temp->size % 2 != 0)
@@ -315,7 +146,7 @@ void node_to_output(void *element, void *output)
             startplace += whitespace;
 
             start(iter_temp, temp);
-            start(iter_out, *out);
+            start(iter_out, out);
             while (i < startplace)
             {
                 next(iter_out);
@@ -347,23 +178,10 @@ void node_to_output(void *element, void *output)
         }
 
     add_empty_nodes(this);
+    } else if (out) {
+        print_output(out);
+        out = NULL;
     }
-}
-
-void print_tree(void *element)
-{
-    Iterator *iter = (Iterator *)(malloc(sizeof(Iterator)));
-    DoublyLinked *output = (DoublyLinked *)element;
-    if (output->tail->element != '\n') add_last_pos(output, '\n');
-    start(iter, output);
-    while (!end(iter))
-    {
-        printf("%c", iter->place->element);
-        next(iter);
-    }
-
-    free(iter);
-    free(element);
 }
 
 int main(int argc, char *argv[])
@@ -374,12 +192,12 @@ int main(int argc, char *argv[])
         return 1;
     }
     Tree *tree = new_tree();
-    DoublyLinked *a;
+    DoublyLinkedList *a;
     int c;
 
     for (int i = 1; i < argc; i++)
     {
-        a = (DoublyLinked *)malloc(sizeof(DoublyLinked));
+        a = (DoublyLinkedList *)malloc(sizeof(DoublyLinkedList));
         add_last_pos(a, *(argv[i]));
         while ((c = *(++argv[i])) != 0)
         {
@@ -388,7 +206,7 @@ int main(int argc, char *argv[])
         insert_node(tree, a, &compare_lists);
     }
 
-    print_tree(level_order(tree, &node_to_output, &add_white_space));
+    level_order(tree, &node_to_output);
     free(a);
     free(tree);
     return 0;

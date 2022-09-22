@@ -1,7 +1,7 @@
-#ifndef TREE_H
-#define TREE_H
+#ifndef CPPTREE_H
+#define CPPTREE_H
 #include <stdlib.h>
-#include "Queue.h"
+#include "CppQueue.h"
 
 typedef void handle(void *);
 typedef int compare(void *, void *);
@@ -129,11 +129,6 @@ void Tree::insert_node(void *element, compare cmp)
         parent->set_right(new_node);
 }
 
-int Tree::find_height()
-{
-    return find_height(this->root);
-}
-
 void Tree::level_order(handle handle)
 {
     Queue *queue = new Queue(1<<find_height());
@@ -167,6 +162,11 @@ void Tree::destroy_tree(TreeNode *node)
         destroy_tree(node->get_right());
         delete node;
     }
+}
+
+int Tree::find_height()
+{
+    return find_height(this->root);
 }
 
 int Tree::find_height(TreeNode *node)

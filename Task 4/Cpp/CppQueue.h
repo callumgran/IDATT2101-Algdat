@@ -1,5 +1,5 @@
-#ifndef QUEUE_H
-#define QUEUE_H
+#ifndef CPPQUEUE_H
+#define CPPQUEUE_H
 #include <stdlib.h>
 
 class Queue 

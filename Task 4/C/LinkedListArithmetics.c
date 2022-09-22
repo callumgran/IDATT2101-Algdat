@@ -1,85 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <DoublyLinkedList.h>
 
-typedef struct NodeStruct 
-{
-    int element;
-    struct NodeStruct *next;
-    struct NodeStruct *prev;
-} Node;
+typedef void func_type(DoublyLinkedList*, ListNode*, int);
 
-typedef struct
-{
-    Node *head;
-    Node *tail;
-    int size;
-} DoublyLinked;
-
-typedef struct 
-{
-    Node *place;
-} Iterator;
-
-Node* new_node(int e, Node *n, Node* p) 
-{
-    Node *res = (Node*)(malloc(sizeof(Node)));
-    res->element = e;
-    res->next = n;
-    res->prev = p;
-    return res;
-}
-
-typedef void func_type(DoublyLinked*, Node*, int);
-
-void add_first_pos(DoublyLinked *l, int value)
-{
-    Node* new = new_node(value, l->head, NULL);
-    l->head = new;
-    if (!l->tail) l->tail = new;
-    else new->next->prev = new;
-    l->size++;
-}
-
-void add_last_pos(DoublyLinked *l, int value)
-{
-    Node* new = new_node(value, NULL, l->tail);
-    if (l->tail) l->tail->next = new;
-    else l->head = new;
-    l->tail = new;
-    l->size++;
-}
-
-Node* remove_node(DoublyLinked *l, Node* n)
-{
-    if(n->prev)
-        n->prev->next = n->next;
-    else l->head= n->next;
-    if(n->next)
-        n->next->prev = n->prev;
-    else l->tail = n->prev;
-    n->next = NULL;
-    n->prev = NULL;
-    l->size--;
-    return n;
-}
-
-void start(Iterator *iter, DoublyLinked* l)
-{
-    iter->place = l->head;
-}
-
-int end(Iterator *iter)
-{
-    return !iter->place;
-}
-
-void next(Iterator *iter)
-{
-    if(!end(iter))
-        iter->place = iter->place->next;
-}
-
-void addition(DoublyLinked *l, Node *a, int b) 
+void addition(DoublyLinkedList *l, ListNode *a, int b) 
 {
     a->element = a->element + b;
     if (a->element > 9)
@@ -93,7 +18,7 @@ void addition(DoublyLinked *l, Node *a, int b)
     }
 }
 
-void subtraction(DoublyLinked *l, Node *a, int b) 
+void subtraction(DoublyLinkedList *l, ListNode *a, int b) 
 {
     a->element = a->element - b;
     if (a->element < 0)
@@ -108,7 +33,7 @@ void subtraction(DoublyLinked *l, Node *a, int b)
     }
 }
 
-void swap_lists_same_size(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator *iter_b)
+void swap_lists_same_size(DoublyLinkedList **l1, DoublyLinkedList **l2, Iterator *iter_a, Iterator *iter_b)
 {
     int c;
     start(iter_a, *l2);
@@ -122,9 +47,9 @@ void swap_lists_same_size(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a
     }
 }
 
-void swap_lists_diff_size(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a, Iterator *iter_b)
+void swap_lists_diff_size(DoublyLinkedList **l1, DoublyLinkedList **l2, Iterator *iter_a, Iterator *iter_b)
 {
-    DoublyLinked *temp = (DoublyLinked*)malloc(sizeof(DoublyLinked));
+    DoublyLinkedList *temp = (DoublyLinkedList*)malloc(sizeof(DoublyLinkedList));
     Iterator *iter_c = (Iterator*)malloc(sizeof(Iterator));
     int l1_size = (*l1)->size, c;
 
@@ -160,7 +85,7 @@ void swap_lists_diff_size(DoublyLinked **l1, DoublyLinked **l2, Iterator *iter_a
     free(temp);
 }
 
-void arithmetic(DoublyLinked *l1, DoublyLinked *l2, func_type func)
+void arithmetic(DoublyLinkedList *l1, DoublyLinkedList *l2, func_type func)
 {
     int i, place, sub_swapped = 1;
     Iterator *iter_a = (Iterator*)malloc(sizeof(Iterator))
@@ -199,7 +124,7 @@ void arithmetic(DoublyLinked *l1, DoublyLinked *l2, func_type func)
     free(iter_b);
 }
 
-void clean_print_number(DoublyLinked **l)
+void clean_print_number(DoublyLinkedList **l)
 {
     Iterator *iter = (Iterator*)malloc(sizeof(Iterator));
     start(iter, *l);
@@ -218,7 +143,7 @@ void clean_print_number(DoublyLinked **l)
     free(iter);
 }
 
-void print_result(DoublyLinked *l1, DoublyLinked *l2, func_type func)
+void print_result(DoublyLinkedList *l1, DoublyLinkedList *l2, func_type func)
 {
     clean_print_number(&l1);
     printf("%s", func == addition ? " + " : " - ");
@@ -236,7 +161,7 @@ int main(int argc, char *argv[])
      * argv[2] = operator (+ or -)
      * argv[3] = second number
      */
-    void (*func)(DoublyLinked*, Node*, int);
+    void (*func)(DoublyLinkedList*, ListNode*, int);
     if (argc != 4) 
     {
         fprintf(stderr, "wrong amount of input\n");
@@ -254,8 +179,8 @@ int main(int argc, char *argv[])
         func = &addition;
     }
 
-    DoublyLinked *a = (DoublyLinked*)malloc(sizeof(DoublyLinked)), 
-    *b = (DoublyLinked*)malloc(sizeof(DoublyLinked));
+    DoublyLinkedList *a = (DoublyLinkedList*)malloc(sizeof(DoublyLinkedList)), 
+    *b = (DoublyLinkedList*)malloc(sizeof(DoublyLinkedList));
 
     char c;
     add_last_pos(a, (int)*(argv[1]) - '0');

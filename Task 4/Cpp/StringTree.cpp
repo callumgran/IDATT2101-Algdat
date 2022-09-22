@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <math.h>
 #include <ctype.h>
-#include "Tree.h"
-#include "DoublyLinkedList.h"
+#include "CppTree.h"
+#include "CppDoublyLinkedList.h"
 using namespace std;
 
 // With line width 3 * 64 line width and 3 spaces.
