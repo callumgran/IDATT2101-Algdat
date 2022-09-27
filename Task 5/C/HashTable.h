@@ -358,7 +358,6 @@ int ht_insert_item(struct ht_t *ht, const void *key, size_t key_size, void *valu
 
     size_t hash = hash_func(key, key_size, ht->max);
     struct hti_t *curr = ht->items[hash];
-
     if (!curr)
     {
         if (ht->size == ht->max)
@@ -372,12 +371,14 @@ int ht_insert_item(struct ht_t *ht, const void *key, size_t key_size, void *valu
     }
     else
     {
+        ht->size++;
         if (curr->key_size == key_size) 
             if (memcmp(key, curr->key, key_size) == 0) 
             {
                 memcpy(ht->items[hash]->value, value, val_size);
                 return 1;
             }
+        printf("%s\n", (char*)(value));
         ht_handle_collision(ht, hash, hti);
         return 2;
     }
@@ -387,17 +388,27 @@ void* ht_find_item(struct ht_t *ht, const void *key, size_t key_size, hash_func 
 {
     size_t hash = hash_func(key, key_size, ht->max);
     struct hti_t *hti = ht->items[hash];
-    struct dll_t *head = ht->overflow[hash];
-
-    while (hti)
+    struct dll_t *dll = ht->overflow[hash];
+    struct dll_it_t *it = (struct dll_it_t*)(malloc(sizeof(struct dll_it_t)));
+    if (dll != NULL && dll->head != NULL)
+    {
+        dll_it_start(it, dll);
+        while (!dll_it_end(it))
+        {
+            if (!hti || !hti->key_size || !hti->key)
+                return NULL;
+            if (key_size == hti->key_size)
+                if (memcmp(key, hti->key, key_size) == 0)
+                    return hti->value;
+            hti = (struct hti_t*)it->place->element;
+            dll_it_next(it);
+        }
+    }
+    if (hti)
     {
         if (key_size == hti->key_size) 
             if (memcmp(key, hti->key, key_size) == 0)
                 return hti->value;
-        if (!head) return NULL;
-        if (!head->head) return NULL;
-        hti = (struct hti_t*)head->head->element;
-        head->head = head->head->next;
     }
     return NULL;
 }
@@ -405,60 +416,59 @@ void* ht_find_item(struct ht_t *ht, const void *key, size_t key_size, hash_func 
 int ht_remove_item(struct ht_t *ht, const void *key, size_t key_size, hash_func hash_func)
 {
     size_t hash = hash_func(key, key_size, ht->max);
-    struct hti_t *curr = ht->items[hash];
-    struct dll_t *head = ht->overflow[hash];
-
-    if (!curr)
+    struct dll_t *dll = ht->overflow[hash];
+    struct hti_t *hti = ht->items[hash];
+    struct dll_it_t *it = (struct dll_it_t*)(malloc(sizeof(struct dll_it_t)));
+    if (hti == NULL)
         return 1;
-
-    if (head->head == NULL && curr->key_size == key_size && memcmp(curr->key, key, key_size) == 0) 
+        
+    if((hti->key_size == key_size) && memcmp(hti->key, key, key_size) == 0)
     {
-        ht->items[hash] = NULL;
-        ht_item_free(curr);
-        ht->size--;
-        return 0;
-    }
-    else if (head->head)
-    {
-        if (curr->key_size == key_size && memcmp(curr->key, key, key_size) == 0)
-        ht_item_free(curr);
-        struct dll_t* node = head;
-        head->head = head->head->next;
-        node->head->next = NULL;
-        ht->items[hash] = ht_create_item(((struct hti_t*)node->head->element)->key, ((struct hti_t*)node->head->element)->key_size, 
-                                            ((struct hti_t*)node->head->element)->value, ((struct hti_t*)node->head->element)->val_size);
-        dll_free(node);
-        ht->overflow[hash] = head;
-        return 0;
-    }
-
-    struct dll_t *prev = NULL;
-    struct dll_t *temp = head;
-
-    while (curr) 
-    {
-        if (curr->key_size == key_size && memcmp(curr->key, key, key_size) == 0) 
+        if (dll != NULL && dll->head != NULL)
         {
-            if (!prev) 
+            if (dll->head->next != NULL)
             {
-                dll_free(head);
-                ht->overflow[hash] = NULL;
-                return 0;
+                ht->items[hash] = (struct hti_t*)dll->head->element;
+                struct dll_ln_t *temp = dll_remove_ln(dll, dll->head);
+                dll_ln_free(temp);
             }
             else
             {
-                prev->head->next = temp->head->next;
-                temp->head->next = NULL;
-                dll_free(temp);
-                ht->overflow[hash] = head;
-                return 0;
+                dll_free(dll);
+                ht->overflow[hash] = NULL;
             }
         }
-
-        temp->head = temp->head->next;
-        curr = (struct hti_t*)temp->head->element;
-        prev = temp;
+        else 
+        {
+            ht->items[hash] = NULL;
+            ht_item_free(hti);
+        }
+        ht->size--;
+        return 0;
     }
+    else if (dll != NULL && dll->head != NULL)
+    {
+        dll_it_start(it, dll);
+        while (!dll_it_end(it))
+        {
+            hti = (struct hti_t*)it->place->element;
+            if (key_size == hti->key_size) 
+                if (memcmp(key, hti->key, key_size) == 0)
+                {
+                    if (it->place != dll->tail)
+                    {
+                        dll_ln_free(dll_remove_ln(dll, it->place->element));
+                    }
+                    else
+                    {
+                        dll_ln_free(dll_remove_ln(dll, dll->tail));
+                    }
+                    return 0;
+                }
+            dll_it_next(it);
+        }
+    }
+    return 1;
 }
 
 #endif
