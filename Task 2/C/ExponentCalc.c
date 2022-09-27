@@ -3,6 +3,8 @@
 #include <time.h>
 #include <math.h>
 
+typedef double exponent_func(double base, int exponent);
+
 double exponent_method_one(double base, int exponent)
 {
     if(exponent == 0) return 1;
@@ -21,14 +23,14 @@ double c_pow(double base, int exponent)
     return pow(base, exponent);
 }
 
-void time_test(double base, int exponent, double (*func)(double, int)) 
+void time_test(double base, int exponent, exponent_func calc) 
 {
     int seconds = 1;
     time_t start, end;
     double count = 0;
     start = time(NULL);
     while(difftime(time(NULL), start) < seconds) {
-        func(base, exponent);
+        calc(base, exponent);
         count++;
     }
     double nano_sec = 1000000000*(seconds/count);

@@ -1,8 +1,29 @@
 {
     "files.associations": {
-        "HermannKok.C": "cpp",
         "StringTree.C": "cpp",
-        "doublylinkedlist.h": "c"
+        "doublylinkedlist.h": "c",
+        "queue.h": "c",
+        "ostream": "cpp",
+        "iostream": "cpp",
+        "chrono": "cpp",
+        "array": "c",
+        "string": "c",
+        "string_view": "c",
+        "random": "cpp",
+        "optional": "cpp",
+        "istream": "cpp",
+        "ratio": "cpp",
+        "system_error": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "hashtable.h": "c",
+        "sstream": "c",
+        "math.h": "c",
+        "vector": "c",
+        "memory": "c",
+        "string.h": "c"
     },
     "C_Cpp.errorSquiggles": "Enabled"
 }

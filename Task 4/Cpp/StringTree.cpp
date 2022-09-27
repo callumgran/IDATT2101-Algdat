@@ -15,10 +15,9 @@ using namespace std;
 int compare_lists(void *element_1, void *element_2)
 {
     int a, b, largest;
-    Iterator *iter_a = new Iterator(),
+    auto *iter_a = new Iterator(),
             *iter_b = new Iterator();
-    DoublyLinkedList
-        *l1 = static_cast<DoublyLinkedList *>(element_1),
+    auto *l1 = static_cast<DoublyLinkedList *>(element_1),
         *l2 = static_cast<DoublyLinkedList *>(element_2);
 
     if (l1->get_size() > l2->get_size())
@@ -90,8 +89,8 @@ void add_white_space(DoublyLinkedList **out)
 
 void add_empty_nodes(void *element)
 {
-    TreeNode *curr = static_cast<TreeNode *>(element);
-    DoublyLinkedList *empty_list = new DoublyLinkedList();
+    auto *curr = static_cast<TreeNode *>(element);
+    auto *empty_list = new DoublyLinkedList();
     if (curr->get_right() == NULL)
         curr->set_right(new TreeNode(empty_list, curr, NULL, NULL));
     if (curr->get_left() == NULL)

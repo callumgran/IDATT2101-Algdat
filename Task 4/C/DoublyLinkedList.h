@@ -1,5 +1,6 @@
 #ifndef DOUBLYLINKEDLIST_H
 #define DOUBLYLINKEDLIST_H
+#include <stdlib.h> //malloc
 
 typedef struct ListNodeStruct 
 {

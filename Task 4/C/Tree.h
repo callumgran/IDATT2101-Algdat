@@ -1,5 +1,6 @@
 #ifndef TREE_H
 #define TREE_H
+#include <stdlib.h> //malloc
 #include "Queue.h"
 
 typedef void create_line_func(void *);
@@ -80,7 +81,6 @@ void insert_node(Tree *tree, void *element, compare cmp)
 void *level_order(Tree *tree, create_line_func handle_output)
 {
     Queue *queue = new_queue(1<<find_height_tree(tree));
-    void *output = (void **)(malloc(sizeof(void*)));
     add_to_queue(queue, tree->root);
     while (!empty_queue(queue))
     {
