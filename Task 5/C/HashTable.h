@@ -303,7 +303,7 @@ void ht_free(struct ht_t* ht)
     for (int i = 0; i < ht->max; i++)
     {
         struct hti_t* hti = ht->items[i];
-        if (hti) ht_item_free(hti);
+        if (hti && hti->key && hti->value) ht_item_free(hti);
     }
 
     ht_free_overflow(ht);
@@ -406,9 +406,13 @@ void* ht_find_item(struct ht_t *ht, const void *key, size_t key_size, hash_func 
     }
     if (hti)
     {
-        if (key_size == hti->key_size) 
+        if (key_size == hti->key_size)
+        {
+            if (!hti || !hti->key_size || !hti->key)
+                return NULL;
             if (memcmp(key, hti->key, key_size) == 0)
                 return hti->value;
+        }       
     }
     return NULL;
 }
@@ -428,13 +432,12 @@ int ht_remove_item(struct ht_t *ht, const void *key, size_t key_size, hash_func 
         {
             if (dll->head->next != NULL)
             {
+                dll_ln_free(dll_remove_ln(dll, dll->head));
                 ht->items[hash] = (struct hti_t*)dll->head->element;
-                struct dll_ln_t *temp = dll_remove_ln(dll, dll->head);
-                dll_ln_free(temp);
             }
             else
             {
-                dll_free(dll);
+                ht->items[hash] = (struct hti_t*)dll->head->element;
                 ht->overflow[hash] = NULL;
             }
         }

@@ -125,6 +125,11 @@ int main()
         printf("%s\n", res);
     else 
         printf("Deleted\n");
+    res = ht_find_item_str(ht, "Sebastian Wessel");
+    if (res)
+        printf("%s\n", res);
+    else 
+        printf("Deleted\n");
     
     ht_free(ht);
     
