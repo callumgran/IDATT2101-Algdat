@@ -5,7 +5,7 @@
 
 #define MAX_LINE_LENGTH (100)
 
-const long long unsigned FIBONACCI = 11400714819323198485llu;
+#define FIBONACCI 11400714819323198485llu
 
 size_t hasher(const void *val, size_t val_size, size_t max)
 {

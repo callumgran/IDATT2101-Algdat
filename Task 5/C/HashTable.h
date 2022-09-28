@@ -122,7 +122,7 @@ void* ht_find_item(struct ht_t *ht, const void *key, size_t key_size, hash_func 
 /*
 * Finds a doubly hashed item to the hash table.
 */
-void* ht_find_item_double_hash(struct ht_t *ht, const void *key, size_t key_size, hash_func hashing);
+void* ht_find_double_hashed_item(struct ht_t *ht, const void *key, size_t key_size, hash_func hash_func1, hash_func hash_func2);
 /*
 * Removes an item from the hash table.
 */
@@ -345,16 +345,25 @@ void ht_handle_collision(struct ht_t *ht, size_t hash, struct hti_t *hti)
     }
 }
 
-int ht_insert_item_double_hash(struct ht_t *ht, const void *key, size_t key_size, void *value,
-                size_t val_size, hash_func hash_func)
-{
+// int ht_insert_item_double_hash(struct ht_t *ht, const void *key, size_t key_size, void *value,
+//                 size_t val_size, hash_func hash_func)
+// {
+//     struct hti_t *hti = ht_create_item(key, key_size, value, val_size);
     
-}
+//     size_t hash = hash_func(key, key_size, ht->max);
+
+//     while(ht->items[hash] != NULL
+//         && ht->items[hash]->key != key
+//         && ht->items[hash]->key != -1)
+//     {
+//         hashIn
+//     }
+// }
 
 int ht_insert_item(struct ht_t *ht, const void *key, size_t key_size, void *value,
                 size_t val_size, hash_func hash_func)
 {
-    struct hti_t* hti = ht_create_item(key, key_size, value, val_size);
+    struct hti_t *hti = ht_create_item(key, key_size, value, val_size);
 
     size_t hash = hash_func(key, key_size, ht->max);
     struct hti_t *curr = ht->items[hash];
@@ -371,14 +380,12 @@ int ht_insert_item(struct ht_t *ht, const void *key, size_t key_size, void *valu
     }
     else
     {
-        ht->size++;
         if (curr->key_size == key_size) 
             if (memcmp(key, curr->key, key_size) == 0) 
             {
                 memcpy(ht->items[hash]->value, value, val_size);
                 return 1;
             }
-        printf("%s\n", (char*)(value));
         ht_handle_collision(ht, hash, hti);
         return 2;
     }
@@ -390,20 +397,6 @@ void* ht_find_item(struct ht_t *ht, const void *key, size_t key_size, hash_func 
     struct hti_t *hti = ht->items[hash];
     struct dll_t *dll = ht->overflow[hash];
     struct dll_it_t *it = (struct dll_it_t*)(malloc(sizeof(struct dll_it_t)));
-    if (dll != NULL && dll->head != NULL)
-    {
-        dll_it_start(it, dll);
-        while (!dll_it_end(it))
-        {
-            if (!hti || !hti->key_size || !hti->key)
-                return NULL;
-            if (key_size == hti->key_size)
-                if (memcmp(key, hti->key, key_size) == 0)
-                    return hti->value;
-            hti = (struct hti_t*)it->place->element;
-            dll_it_next(it);
-        }
-    }
     if (hti)
     {
         if (key_size == hti->key_size)
@@ -413,6 +406,43 @@ void* ht_find_item(struct ht_t *ht, const void *key, size_t key_size, hash_func 
             if (memcmp(key, hti->key, key_size) == 0)
                 return hti->value;
         }       
+    }
+    if (dll != NULL && dll->head != NULL)
+    {
+        dll_it_start(it, dll);
+        while (!dll_it_end(it))
+        {
+            hti = (struct hti_t*)it->place->element;
+            if (!hti || !hti->key_size || !hti->key)
+                return NULL;
+            if (key_size == hti->key_size)
+                if (memcmp(key, hti->key, key_size) == 0)
+                    return hti->value;
+            dll_it_next(it);
+        }
+    }
+    return NULL;
+}
+
+void* ht_find_double_hashed_item(struct ht_t *ht, const void *key, size_t key_size, hash_func hash_func1, hash_func hash_func2)
+{
+    size_t hash = hash_func1(key, key_size, ht->max);
+    struct hti_t *hti = ht->items[hash];
+
+    size_t index = (size_t)(hash & (uint64_t)(table->capacity - 1));
+
+    // Loop till we find an empty entry.
+    while (table->entries[index].key != NULL) {
+        if (strcmp(key, table->entries[index].key) == 0) {
+            // Found key, return value.
+            return table->entries[index].value;
+        }
+        // Key wasn't in this slot, move to next (linear probing).
+        index++;
+        if (index >= table->capacity) {
+            // At end of entries array, wrap around.
+            index = 0;
+        }
     }
     return NULL;
 }
@@ -445,8 +475,8 @@ int ht_remove_item(struct ht_t *ht, const void *key, size_t key_size, hash_func 
         {
             ht->items[hash] = NULL;
             ht_item_free(hti);
+            ht->size--;
         }
-        ht->size--;
         return 0;
     }
     else if (dll != NULL && dll->head != NULL)

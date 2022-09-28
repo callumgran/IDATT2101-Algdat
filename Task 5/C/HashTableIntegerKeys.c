@@ -5,7 +5,7 @@
 
 #define SIZE (10 * 1000000) // x * million
 
-const long long unsigned FIBONACCI = 11400714819323198485llu;
+#define FIBONACCI 11400714819323198485llu
 
 
 int find_power_of_2(size_t n)
@@ -14,7 +14,7 @@ int find_power_of_2(size_t n)
     return find_power_of_2(n>>1) + 1;
 }
 
-static size_t fib_hash(const void *val, size_t val_size, size_t max)
+size_t fib_hash(const void *val, size_t val_size, size_t max)
 {
     size_t key = 1;
 
@@ -22,4 +22,21 @@ static size_t fib_hash(const void *val, size_t val_size, size_t max)
         key += key * ((int8_t*)val)[i];
     
     return (key * FIBONACCI) >> (64 - find_power_of_2(max));
+}
+
+size_t binary_hash(const void *val, size_t val_size, size_t max)
+{
+    size_t key = 1;
+
+    for (int i = 0; i < val_size; i++)
+        key += key * ((int8_t*)val)[i];
+    
+    return key & (max - 1);
+}
+
+
+int main()
+{
+
+    return 0;
 }
