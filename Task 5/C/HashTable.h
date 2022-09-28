@@ -113,8 +113,8 @@ int ht_insert_item(struct ht_t *ht, const void *key, size_t key_size, void *valu
 /*
 * Adds a doubly hashed item to the hash table.
 */
-int ht_insert_item_double_hash(struct ht_t *ht, const void *key, size_t key_size, void *value,
-                size_t val_size, hash_func);
+int ht_insert_double_hashed_item(struct ht_t *ht, const void *key, size_t key_size, void *value,
+                size_t val_size, hash_func, hash_func);
 /*
 * Finds an item in the hash table.
 */
@@ -345,21 +345,6 @@ void ht_handle_collision(struct ht_t *ht, size_t hash, struct hti_t *hti)
     }
 }
 
-// int ht_insert_item_double_hash(struct ht_t *ht, const void *key, size_t key_size, void *value,
-//                 size_t val_size, hash_func hash_func)
-// {
-//     struct hti_t *hti = ht_create_item(key, key_size, value, val_size);
-    
-//     size_t hash = hash_func(key, key_size, ht->max);
-
-//     while(ht->items[hash] != NULL
-//         && ht->items[hash]->key != key
-//         && ht->items[hash]->key != -1)
-//     {
-//         hashIn
-//     }
-// }
-
 int ht_insert_item(struct ht_t *ht, const void *key, size_t key_size, void *value,
                 size_t val_size, hash_func hash_func)
 {
@@ -419,29 +404,6 @@ void* ht_find_item(struct ht_t *ht, const void *key, size_t key_size, hash_func 
                 if (memcmp(key, hti->key, key_size) == 0)
                     return hti->value;
             dll_it_next(it);
-        }
-    }
-    return NULL;
-}
-
-void* ht_find_double_hashed_item(struct ht_t *ht, const void *key, size_t key_size, hash_func hash_func1, hash_func hash_func2)
-{
-    size_t hash = hash_func1(key, key_size, ht->max);
-    struct hti_t *hti = ht->items[hash];
-
-    size_t index = (size_t)(hash & (uint64_t)(table->capacity - 1));
-
-    // Loop till we find an empty entry.
-    while (table->entries[index].key != NULL) {
-        if (strcmp(key, table->entries[index].key) == 0) {
-            // Found key, return value.
-            return table->entries[index].value;
-        }
-        // Key wasn't in this slot, move to next (linear probing).
-        index++;
-        if (index >= table->capacity) {
-            // At end of entries array, wrap around.
-            index = 0;
         }
     }
     return NULL;

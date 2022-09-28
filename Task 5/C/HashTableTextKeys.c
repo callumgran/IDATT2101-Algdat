@@ -47,7 +47,7 @@ int main()
     FILE *textfile;
     char line[MAX_LINE_LENGTH], *res;
     int ch, lines = 1, collisions = 0, i = 0, l = 0;
-    ht *ht = ht_malloc(128);
+    ht *ht = ht_malloc(127);
 
     textfile = fopen("names.txt", "r");
     if (textfile == NULL) 
