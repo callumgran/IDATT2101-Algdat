@@ -4,12 +4,12 @@
 #include <time.h>
 
 #define SIZE (10 * 1000000) // x * million
-#define FNV_OFFSET 14695981039346656037UL
-#define FNV_PRIME 1099511628211UL
+#define TABLE_SIZE (13499939)
 
-#define double_hash_probe(index, space, m) (index + space) % m
-#define hash_FNV_1(key, max) ((FNV_OFFSET ^ key) * FNV_PRIME) % max
-#define hash_FNV_0(key, max) ((3 * FNV_PRIME) ^ key) % max
+#define double_hash_probe(i, s) (i + s<<2) % TABLE_SIZE
+#define HASH_1(k) k % TABLE_SIZE
+#define HASH_2(k) k % (TABLE_SIZE-1) + 1
+
 typedef struct hti_t
 {
     int key;
@@ -57,11 +57,13 @@ void ht_free(struct ht_t *ht)
 int ht_insert_double_hashed_item(ht *ht, int key, int value)
 {
     struct hti_t *hti = ht_create_item(key, value);
-    int index = hash_FNV_1(key, ht->max);
-
-    if (ht->size == ht->max)
+    int index = HASH_1(key);
+    
+    ht->size++;
+    if (ht->size > TABLE_SIZE)
     {
         free(hti);
+        ht->size--;
         return -1;
     }
     else if (ht->items[index] == 0)
@@ -71,7 +73,7 @@ int ht_insert_double_hashed_item(ht *ht, int key, int value)
     }
     else
     {
-        int space = hash_FNV_0(key, ht->max),
+        int space = HASH_2(key),
             cols = 1;
         if (ht->items[space] == 0)
         {
@@ -81,14 +83,13 @@ int ht_insert_double_hashed_item(ht *ht, int key, int value)
         else
         {
             cols++;
-            index = double_hash_probe(index, space, ht->max);
+            index = double_hash_probe(index, space);
             while (ht->items[index])
             {
                 cols++;
-                index++;
+                index = double_hash_probe(index, space);
             }
             ht->items[index] = hti;
-            ht->size++;
             return cols;
         }
     }
@@ -96,24 +97,24 @@ int ht_insert_double_hashed_item(ht *ht, int key, int value)
 
 int ht_find_double_hashed_item(struct ht_t *ht, int key)
 {
-    int index = hash_FNV_1(key, ht->max);
+    int index = HASH_1(key);
     if (ht->items[index]->key == key)
         return ht->items[index]->value;
     else
     {
-        int space = hash_FNV_0(key, ht->max);
+        int space = HASH_2(key);
         if (ht->items[space]->key == key)
             return ht->items[space]->value;
         else
         {
-            index = double_hash_probe(index, space, ht->max);
+            index = double_hash_probe(index, space);
             if (ht->items[index]->key == key)
                 return ht->items[space]->value;
             else
             {
                 while (ht->items[index])
                 {
-                    index++;
+                    index = double_hash_probe(index, space);
                     if (ht->items[index]->key == key)
                         return ht->items[index]->value;
                 }
@@ -130,42 +131,28 @@ void fill_random(int *data, int len)
         *(data + i) = rand();
 }
 
-int ht_insert_item_int(ht *ht, int val)
-{
-    return 0 < ht_insert_double_hashed_item(ht, val, val);
-}
-
-int ht_find_item_int(ht *ht, int val)
-{
-    return ht_find_double_hashed_item(ht, val);
-}
-
 int main()
 {
     clock_t t;
-    ht *ht = ht_malloc(13499939);
+    ht *ht = ht_malloc(TABLE_SIZE);
     int *data = (int *)(malloc(SIZE * sizeof(int))),
         collisions = 0;
     fill_random(data, SIZE);
     t = clock();
     for (int i = 0; i < SIZE; i++)
-    {
-        collisions += ht_insert_item_int(ht, data[i]);
-    }
+        collisions += ht_insert_double_hashed_item(ht, data[i], data[i]);
     t = clock() - t;
     double time_taken_insert = ((double)t) / (CLOCKS_PER_SEC / 1000);
     printf("Time taken to insert items: %fms\n", time_taken_insert);
     t = clock();
     for (int i = 0; i < SIZE; i++)
-    {
-        ht_find_item_int(ht, data[i]);
-    }
+        ht_find_double_hashed_item(ht, data[i]);
     t = clock() - t;
     double time_taken_find = ((double)t) / (CLOCKS_PER_SEC / 1000);
     printf("Time taken to find items: %fms\n", time_taken_find);
     printf("Collisions: %d\n", collisions);
     printf("Collisions per element: %f\n", (double)collisions / SIZE);
-    printf("Load factor: %f\n", (double)SIZE/13499939);
+    printf("Load factor: %f\n", (double)SIZE/TABLE_SIZE);
     ht_free(ht);
     return 0;
 }

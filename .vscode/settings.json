@@ -23,7 +23,8 @@
         "math.h": "c",
         "vector": "c",
         "memory": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "limits": "c"
     },
     "C_Cpp.errorSquiggles": "Enabled"
 }
