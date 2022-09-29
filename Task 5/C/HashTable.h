@@ -111,18 +111,9 @@ void ht_free(struct ht_t *ht);
 int ht_insert_item(struct ht_t *ht, const void *key, size_t key_size, void *value,
                 size_t val_size, hash_func);
 /*
-* Adds a doubly hashed item to the hash table.
-*/
-int ht_insert_double_hashed_item(struct ht_t *ht, const void *key, size_t key_size, void *value,
-                size_t val_size, hash_func, hash_func);
-/*
 * Finds an item in the hash table.
 */
 void* ht_find_item(struct ht_t *ht, const void *key, size_t key_size, hash_func hashing);
-/*
-* Finds a doubly hashed item to the hash table.
-*/
-void* ht_find_double_hashed_item(struct ht_t *ht, const void *key, size_t key_size, hash_func hash_func1, hash_func hash_func2);
 /*
 * Removes an item from the hash table.
 */
@@ -341,7 +332,7 @@ void ht_handle_collision(struct ht_t *ht, size_t hash, struct hti_t *hti)
     }
     else
     {
-        dll_add_last(ht->overflow[hash], hti, &ht_item_free);
+        dll_add_first(ht->overflow[hash], hti, &ht_item_free);
     }
 }
 
@@ -369,7 +360,7 @@ int ht_insert_item(struct ht_t *ht, const void *key, size_t key_size, void *valu
             if (memcmp(key, curr->key, key_size) == 0) 
             {
                 memcpy(ht->items[hash]->value, value, val_size);
-                return 1;
+                return 0;
             }
         ht_handle_collision(ht, hash, hti);
         return 2;

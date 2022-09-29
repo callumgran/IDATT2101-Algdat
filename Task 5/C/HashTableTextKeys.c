@@ -7,15 +7,6 @@
 
 #define FIBONACCI 11400714819323198485llu
 
-size_t hasher(const void *val, size_t val_size, size_t max)
-{
-    size_t key = 1;
-    for (int i = 0; i < val_size; i++)
-        key += ((int8_t*)val)[i] * (i + 1);
-
-    return key % max;
-}
-
 int find_power_of_2(size_t n)
 {
     if (n == 1) return 0;
@@ -27,7 +18,7 @@ size_t fib_hash(const void *val, size_t val_size, size_t max)
     size_t key = 1;
 
     for (int i = 0; i < val_size; i++)
-        key += key * ((int8_t*)val)[i];
+        key += key * ((int8_t *)val)[i];
     
     return (key * FIBONACCI) >> (64 - find_power_of_2(max));
 }
@@ -90,6 +81,7 @@ int main()
             i = 0;
             res = ht_find_item_str(ht, line);
             if (strcmp(line, res) == 0) printf("%s = %s\n", line, res);
+            else printf("Failed!\n");
             memset(line, 0, MAX_LINE_LENGTH);
         }
         else
@@ -100,6 +92,7 @@ int main()
     }
     res = ht_find_item_str(ht, line);
     if (strcmp(line, res) == 0) printf("%s = %s\n", line, res);
+    else printf("Failed!\n");
     memset(line, 0, MAX_LINE_LENGTH);
     fclose(textfile);
 
@@ -108,12 +101,12 @@ int main()
     printf("Total collisions: %d\n", collisions);
     printf("Load factor: %f\n", (float)(lines-collisions)/ht->max);
     printf("Collisions per person: %f\n", (float)collisions/lines);
-    char *val_to_delete = "Emil Orvik Olsson";
+    char *val_to_delete = "Emil Orvik Olsson"; //Element that is in the overflow.
     res = ht_find_item_str(ht, val_to_delete);
     if (res)
         printf("%s\n", res);
     else
-        printf("Bruv\n");
+        printf("Failed!\n");
     
     int deleted = ht_remove_item(ht, val_to_delete, strlen(val_to_delete) + 1, &fib_hash);
     if (deleted == 1)
@@ -125,7 +118,7 @@ int main()
         printf("%s\n", res);
     else 
         printf("Deleted\n");
-    res = ht_find_item_str(ht, "Sebastian Wessel");
+    res = ht_find_item_str(ht, "Sebastian Wessel"); //Element that was after the element in the overflow.
     if (res)
         printf("%s\n", res);
     else 
