@@ -127,7 +127,8 @@ static void DFS(struct graph_t *graph, size_t start_node, int *visited)
         node = stack_pop(stack);
         if (!visited[node]) {
             visited[node] = 1;
-            printf("%zu ", node);
+            if (graph->vertices < 100)
+                printf("%zu ", node);
             struct vertex_t *curr = &graph->v_list[node];
             stack_push(stack, curr->node_index);
             for (struct edge_t *edge = curr->first_edge; edge; edge = edge->next_edge)
@@ -152,7 +153,7 @@ static void kosaraju_visit(struct graph_t *graph, size_t node, int *visited, str
 
 static void kosaraju(struct graph_t *graph)
 {
-    printf("Components\tNodes\n");
+    printf("\nNodes:");
     struct stack_t *stack = malloc_stack(graph->edges);
     int visited[graph->vertices];
     memset(visited, 0, sizeof(visited));
@@ -165,16 +166,17 @@ static void kosaraju(struct graph_t *graph)
 
     memset(visited, 0, sizeof(visited));
     
-    size_t component = 1;
+    size_t component = 0;
     while (!stack_is_empty(stack)) {
         size_t node = stack_pop(stack);
         if (!visited[node]) {
-            printf("%zu\t\t", component);
+            printf("\t\t");
             DFS(transposed, node, visited);
             putchar('\n');
             component++;
         }
     }
+    printf("\nComponents:\t%zu\n", component);
 }
 
 void find_scc(char* file)
@@ -190,8 +192,10 @@ void find_scc(char* file)
 
     struct graph_t *g = malloc_graph(textfile); 
     fclose(textfile);
-    
+    printf("\n==============================================");
+    printf("\nFile: %s", file);
     kosaraju(g);
+    printf("==============================================\n");
 
     free(g);
 }
