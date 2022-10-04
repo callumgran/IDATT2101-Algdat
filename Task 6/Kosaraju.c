@@ -3,6 +3,7 @@
 #include <string.h>     // memset
 
 #define INF 1000000000
+#define MAX_NODES_PRINT 100
 
 typedef struct edge_t edge_t;
 
@@ -127,7 +128,7 @@ static void DFS(struct graph_t *graph, size_t start_node, int *visited)
         node = stack_pop(stack);
         if (!visited[node]) {
             visited[node] = 1;
-            if (graph->vertices < 100)
+            if (graph->vertices < MAX_NODES_PRINT)
                 printf("%zu ", node);
             struct vertex_t *curr = &graph->v_list[node];
             stack_push(stack, curr->node_index);
@@ -135,6 +136,8 @@ static void DFS(struct graph_t *graph, size_t start_node, int *visited)
                 stack_push(stack, edge->to_vertex->node_index);
         }
     }
+    if (graph->vertices < MAX_NODES_PRINT)
+        putchar('\n');
 }
 
 static void kosaraju_visit(struct graph_t *graph, size_t node, int *visited, struct stack_t *stack)
@@ -172,7 +175,6 @@ static void kosaraju(struct graph_t *graph)
         if (!visited[node]) {
             printf("\t\t");
             DFS(transposed, node, visited);
-            putchar('\n');
             component++;
         }
     }
