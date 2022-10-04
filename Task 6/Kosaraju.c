@@ -156,7 +156,7 @@ static void kosaraju_visit(struct graph_t *graph, size_t node, int *visited, str
 
 static void kosaraju(struct graph_t *graph)
 {
-    printf("\nNodes:");
+    printf("\nSCC's:");
     struct stack_t *stack = malloc_stack(graph->edges);
     int visited[graph->vertices];
     memset(visited, 0, sizeof(visited));
@@ -173,12 +173,12 @@ static void kosaraju(struct graph_t *graph)
     while (!stack_is_empty(stack)) {
         size_t node = stack_pop(stack);
         if (!visited[node]) {
-            printf("\t\t");
+            printf("\t");
             DFS(transposed, node, visited);
             component++;
         }
     }
-    printf("\nComponents:\t%zu\n", component);
+    printf("\nTotal:\t%zu\n", component);
 }
 
 void find_scc(char* file)
