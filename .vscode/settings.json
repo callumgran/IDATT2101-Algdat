@@ -24,7 +24,11 @@
         "vector": "c",
         "memory": "c",
         "string.h": "c",
-        "limits": "c"
+        "limits": "c",
+        "*.tcc": "c",
+        "unordered_map": "c",
+        "fstream": "c",
+        "streambuf": "c"
     },
     "C_Cpp.errorSquiggles": "Enabled"
 }
