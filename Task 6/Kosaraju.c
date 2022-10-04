@@ -136,15 +136,15 @@ static void DFS(struct graph_t *graph, size_t start_node, int *visited)
     }
 }
 
-static void kosarajo_visit(struct graph_t *graph, size_t node, int *visited, struct stack_t *stack)
+static void kosaraju_visit(struct graph_t *graph, size_t node, int *visited, struct stack_t *stack)
 {
     visited[node] = 1;
     struct vertex_t *curr = &graph->v_list[node];
     if (!visited[curr->node_index])
-        kosarajo_visit(graph, curr->node_index, visited, stack);
+        kosaraju_visit(graph, curr->node_index, visited, stack);
     for (struct edge_t *edge = curr->first_edge; edge; edge = edge->next_edge) {
         if (!visited[edge->to_vertex->node_index])
-            kosarajo_visit(graph, edge->to_vertex->node_index, visited, stack);
+            kosaraju_visit(graph, edge->to_vertex->node_index, visited, stack);
     }
 
     stack_push(stack, node);
@@ -159,7 +159,7 @@ static void kosaraju(struct graph_t *graph)
     
     for (size_t i = 0; i < graph->vertices; i++)
         if (!visited[i]) 
-            kosarajo_visit(graph, i, visited, stack);
+            kosaraju_visit(graph, i, visited, stack);
 
     struct graph_t *transposed = graph_transpose(graph);
 
