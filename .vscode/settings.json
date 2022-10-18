@@ -28,7 +28,8 @@
         "*.tcc": "c",
         "unordered_map": "c",
         "fstream": "c",
-        "streambuf": "c"
+        "streambuf": "c",
+        "initializer_list": "c"
     },
     "C_Cpp.errorSquiggles": "Enabled"
 }
