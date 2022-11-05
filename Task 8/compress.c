@@ -154,12 +154,12 @@ struct huffman_t *malloc_huff()
 void create_huff_codes(struct huffman_t *huff, huff_node_t *node, uint8_t *code, int depth)
 {	
 	if ((node->left == NULL) && (node->right == NULL)) {
-		code[depth] = 0;
-		huff->bitsets[node->c] = strdup(code);
+		*(code + depth) = 0;
+		*(huff->bitsets + node->c) = strdup(code);
 	} else {
-		code[depth] = '0';
+        *(code + depth) = '0';
 		create_huff_codes(huff, node->left, code, depth + 1);
-		code[depth] = '1';
+        *(code + depth) = '1';
 		create_huff_codes(huff, node->right, code, depth + 1);
 	}
 }
@@ -204,7 +204,7 @@ int *find_freq(uint8_t *file_buffer, size_t file_len) {
 	frequency = (int *)(malloc(ASCII * sizeof(int)));
 
 	for (j = 0; j < file_len; j++)
-		frequency[file_buffer[j]]++;
+		(*(frequency + *(file_buffer + j)))++;
 
 	return frequency;
 }
@@ -218,11 +218,13 @@ void circular_buf_reset(struct circular_buf_t *cbuf)
 struct circular_buf_t *circular_buf_init(uint8_t* buffer)
 {
 	struct circular_buf_t   *cbuf;
+
     cbuf = (struct circular_buf_t *)
             malloc(sizeof(struct circular_buf_t));
 	cbuf->buffer = buffer;
     cbuf->max = CIRCULAR_BUFFER_CAPACITY;
 	circular_buf_reset(cbuf);
+
 	return cbuf;
 }
 
@@ -241,7 +243,7 @@ static void advance_pointer(struct circular_buf_t *cbuf)
 
 void circular_buf_put(struct circular_buf_t *cbuf, uint8_t data)
 {
-    cbuf->buffer[cbuf->head] = data;
+    *(cbuf->buffer + cbuf->head) = data;
     advance_pointer(cbuf);
 }
 
@@ -249,7 +251,7 @@ int circular_buf_contains(struct circular_buf_t *cbuf, uint8_t data)
 {
     int i;
     for (i = cbuf->tail; i < cbuf->head; i++)
-        if (cbuf->buffer[i] == data)
+        if (*(cbuf->buffer + i) == data)
             return i;
     return -1;
 }
@@ -307,6 +309,8 @@ void lempel_ziv_encode(char *in_file_name, char *out_file_name)
         return;
     }
 
+    printf("YOO");
+
     fseek(input_file, 0, SEEK_END);
     file_len = ftell(input_file); 
     rewind(input_file);
@@ -322,8 +326,6 @@ void lempel_ziv_encode(char *in_file_name, char *out_file_name)
         return;
     }
 
-    remove(in_file_name);
-
     circ_buffer = malloc(CIRCULAR_BUFFER_CAPACITY * sizeof(uint8_t));
     cbuf = circular_buf_init(circ_buffer);
     tmp_buff = malloc(CIRCULAR_BUFFER_CAPACITY * sizeof(uint8_t));
@@ -331,24 +333,34 @@ void lempel_ziv_encode(char *in_file_name, char *out_file_name)
     next_reference = 0; prev = 0; j = 0; buf_idx = 0; seek_idx = 0;
 
     while (j < file_len) {
-        if (circular_buf_word_index(cbuf, file_buffer, &buf_idx, &seek_idx, j, file_len) != -1) {
+
+        if (circular_buf_word_index(cbuf, file_buffer, &buf_idx,
+                                     &seek_idx, j, file_len) != -1) {
+
             next_reference = j - prev;
             fwrite(&next_reference, 2, 1, output_file);
             fwrite(tmp_buff, next_reference, 1, output_file);
             fwrite(&buf_idx, 2, 1, output_file);
+
             if (seek_idx > file_len - j)
                 seek_idx = file_len - j;
+                
             fwrite(&seek_idx, 2, 1, output_file);
+
             for (int i = 0; i < seek_idx; i++) {
                 circular_buf_put(cbuf, *(cbuf->buffer + buf_idx + i));
                 j++;
             }
+
             memset(tmp_buff, 0, CIRCULAR_BUFFER_CAPACITY);
             prev = j;
+
         } else {
+
             circular_buf_put(cbuf, *(file_buffer + j));
             *(tmp_buff + (j - prev)) = *(file_buffer + j);
             j++;
+
         }
     }
     if (j - prev > 0) {
@@ -364,6 +376,7 @@ void lempel_ziv_encode(char *in_file_name, char *out_file_name)
     free(file_buffer);
     free(tmp_buff);
     fclose(output_file);
+    remove(in_file_name);
 }
 
 void lempel_ziv_decode(char *in_file_name, char *out_file_name)
@@ -433,6 +446,7 @@ void lempel_ziv_decode(char *in_file_name, char *out_file_name)
     free(cbuf);
     fclose(input_file);
     fclose(output_file);
+    remove(in_file_name);
 }
 
 void huff_encode(char *in_file_name, char *out_file_name)
@@ -480,8 +494,6 @@ void huff_encode(char *in_file_name, char *out_file_name)
         return;
     }
 
-    remove(in_file_name);
-
 	fwrite(huff->freq, 4, ASCII, output_file);
 
 	cur_byte = 0;
@@ -514,6 +526,7 @@ void huff_encode(char *in_file_name, char *out_file_name)
 	}
 
 	fclose(output_file);
+    remove(in_file_name);
 	free(file_buffer);
     free(huff->freq);
     free(huff);
@@ -569,21 +582,19 @@ void huff_decode(char *in_file_name, char *out_file_name)
         return;
     }
 	
-    remove(in_file_name);
-
 	j = 0;
 	
     curr = root;
 
 	for (j = 0; j < file_len; j++) {
 		for (int i = 7; i >= 0; --i) {
-			bits[j][i] = *(file_buffer + j) & (1 << i)  ? '1' : '0';
+			*(*(bits + j) + i) = *(file_buffer + j) & (1 << i)  ? '1' : '0';
 		}
 	}
 
 	j = 0; i = 7;
 	while (j < file_len) {
-		if (bits[j][i] == '1')
+		if (*(*(bits + j) + i) == '1')
 			curr = curr->right;
 		else
 			curr = curr->left;
@@ -601,6 +612,7 @@ void huff_decode(char *in_file_name, char *out_file_name)
 	}
 
     fclose(output_file);
+    remove(in_file_name);
     free(huff->freq);
     free(huff);
 	free(file_buffer);
@@ -612,18 +624,24 @@ int main(int argc, char **argv)
 {
     if (argc != 4) {
         fprintf(stderr, "commands: lzc\t|\tlzd\t|\thmc\t|\thmd\n");
-        fprintf(stderr, "usage: %s <path_to_input_file> <path_to_output_file> <command> \n", argv[0]);
-        fprintf(stderr, "example: %s file.txt file.lz.bin lz-c\n", argv[0]);
+        fprintf(stderr, "usage: %s <path_to_input_file> <path_to_output_file> <command> \n", *(argv));
+        fprintf(stderr, "example: %s file.txt file.lz.bin lz-c\n", *(argv));
         return 1;
     }
 
-    if (strcmp(argv[2], "lzc") == 0)
-        lempel_ziv_encode(argv[1], argv[2]);
-    if (strcmp(argv[2], "hmc") == 0)
-        huff_encode(argv[1], argv[2]);
-    if (strcmp(argv[2], "hmd") == 0)
-        huff_decode(argv[1], argv[2]);
-    if (strcmp(argv[2], "lzd") == 0)
-        lempel_ziv_decode(argv[1], argv[2]);
+    if (strcmp(*(argv + 3), "lzc") == 0)
+        lempel_ziv_encode(*(argv + 1), *(argv + 2));
+    else if (strcmp(*(argv + 3), "hmc") == 0)
+        huff_encode(*(argv + 1), *(argv + 2));
+    else if (strcmp(*(argv + 3), "hmd") == 0)
+        huff_decode(*(argv + 1), *(argv + 2));
+    else if (strcmp(*(argv + 3), "lzd") == 0)
+        lempel_ziv_decode(*(argv + 1), *(argv + 2));
+    else {
+        fprintf(stderr, "commands: lzc\t|\tlzd\t|\thmc\t|\thmd\n");
+        fprintf(stderr, "usage: %s <path_to_input_file> <path_to_output_file> <command> \n", *(argv));
+        fprintf(stderr, "example: %s file.txt file.lz.bin lz-c\n", *(argv));
+        return 1;
+    }
     return 0;
 }
