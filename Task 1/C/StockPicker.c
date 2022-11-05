@@ -10,7 +10,7 @@ typedef struct {
         min_val,
         max_val,
         profit;
-} ProfitInfo;
+} profit_info_t;
 
 double RAND(double min, double max)
 {
@@ -24,7 +24,7 @@ void create_values(int* data, int len)
     }
 }
 
-void stockPicker(int* data, ProfitInfo* profits)
+void stockPicker(int *data, profit_info_t *profits)
 {
     int i = 1,
         curr_val = *(data),
@@ -63,7 +63,7 @@ void stockPicker(int* data, ProfitInfo* profits)
 
 int main() 
 {
-    ProfitInfo* profits = (ProfitInfo*)(malloc(sizeof(ProfitInfo)));
+    profit_info_t *profits = (profit_info_t *)(malloc(sizeof(profit_info_t)));
     int* data = (int*)(malloc(SIZE * sizeof(int)));
     clock_t t;
     srand(time(NULL));

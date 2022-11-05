@@ -32,7 +32,7 @@
         if (*left_0 > *right_0)                              \
             swap(*left_0, *right_0);                         \
     }
-
+    
 #define allocate_thread_params(left, right, choice)                           \
     {                                                                         \
         param[0] = left;                                                      \

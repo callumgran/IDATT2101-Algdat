@@ -29,7 +29,11 @@
         "unordered_map": "c",
         "fstream": "c",
         "streambuf": "c",
-        "initializer_list": "c"
+        "initializer_list": "c",
+        "stdio.h": "c",
+        "cstddef": "c",
+        "algorithm": "c",
+        "iterator": "c"
     },
     "C_Cpp.errorSquiggles": "Enabled"
 }
