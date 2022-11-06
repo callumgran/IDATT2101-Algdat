@@ -10,9 +10,8 @@
 #define right(i) (i + 1) << 1
 #define over(i) (i - 1) >> 1
 #define ASCII (256)
-#define MAX_BITS (UINT16_MAX)
 #define CIRCULAR_BUFFER_CAPACITY (UINT16_MAX)
-#define REFERENCE_THRESHOLD (5)
+#define REFERENCE_THRESHOLD (6)
 
 typedef struct heap_t heap_t;
 
@@ -21,6 +20,17 @@ typedef struct huff_node_t huff_node_t;
 typedef struct huffman_t huffman_t;
 
 typedef struct circular_buf_t circular_buf_t;
+
+typedef struct lemp_ziv_t lemp_ziv_t;
+
+struct lemp_ziv_t {
+    uint32_t     r_max;
+    uint32_t     b_max;
+    uint32_t     b_counter;
+    uint32_t     r_counter;
+    uint8_t      *bytes;
+    uint16_t     *references;
+};
 
 struct circular_buf_t {
 	uint8_t     *buffer;
@@ -44,11 +54,22 @@ struct huff_node_t {
 };
 
 struct huffman_t {
+    uint8_t     *bytes;
 	uint8_t 	*bitsets[ASCII];
 	int 		bitset_tot;
 	uint8_t		bitset_pos;
 	int			*freq;
 };
+
+union u32_convertion {
+    uint32_t    u32;
+    uint8_t     u8[4];
+} u32_convertion;
+
+union u16_convertion {
+    uint16_t    u16;
+    uint8_t     u8[2];
+} u16_convertion;
 
 struct heap_t *malloc_heap(int capacity)
 {
@@ -145,7 +166,8 @@ struct huffman_t *malloc_huff()
 
     res = (struct huffman_t *)
 			(malloc(sizeof(struct huffman_t)));
-	res->bitset_tot = 1;
+    res->bytes = (uint8_t *)(malloc(52428800));
+	res->bitset_tot = 0;
 	res->bitset_pos = 0;
 
 	return res;
@@ -197,16 +219,32 @@ struct huff_node_t *construct_huff_tree(struct huffman_t *huff)
 	return root;
 }
 
-int *find_freq(uint8_t *file_buffer, size_t file_len) {
+int *find_freq(uint8_t *data, size_t data_len) {
 	size_t 		j;
 	int 		*frequency;
 
-	frequency = (int *)(malloc(ASCII * sizeof(int)));
+	frequency = (int *)(calloc(ASCII, sizeof(int)));
 
-	for (j = 0; j < file_len; j++)
-		(*(frequency + *(file_buffer + j)))++;
+	for (j = 0; j < data_len; j++)
+		(*(frequency + *(data + j)))++;
 
 	return frequency;
+}
+
+struct lemp_ziv_t *malloc_lemp_ziv()
+{
+    struct lemp_ziv_t *res;
+
+    res = (struct lemp_ziv_t *)
+            (malloc(sizeof(struct lemp_ziv_t)));
+    res->b_max = 52428800;
+    res->b_counter = 0;
+    res->r_max = 256;
+    res->r_counter = 0;
+    res->bytes = (uint8_t *)
+                        (malloc(res->b_max));
+    res->references = (uint16_t *)
+                        (malloc(res->r_max * sizeof(uint16_t)));
 }
 
 void circular_buf_reset(struct circular_buf_t *cbuf)
@@ -247,15 +285,6 @@ void circular_buf_put(struct circular_buf_t *cbuf, uint8_t data)
     advance_pointer(cbuf);
 }
 
-int circular_buf_contains(struct circular_buf_t *cbuf, uint8_t data)
-{
-    int i;
-    for (i = cbuf->tail; i < cbuf->head; i++)
-        if (*(cbuf->buffer + i) == data)
-            return i;
-    return -1;
-}
-
 int circular_buf_word_index(struct circular_buf_t *cbuf, uint8_t *data,
 							uint16_t *buf_idx, uint16_t *seek_idx, size_t idx, size_t file_len)
 {
@@ -268,12 +297,13 @@ int circular_buf_word_index(struct circular_buf_t *cbuf, uint8_t *data,
     match_length = REFERENCE_THRESHOLD;
 
     for (i = 0; i < cbuf->head; i++) {
-        j;
-        for (j = 0; j < cbuf->head; j++) {
-            if (*(cbuf->buffer + j + i) != *(data + (idx + j)) || (idx + j) == file_len - 1) {
+        
+        for (j = 0; j < UINT16_MAX; j++) {
+            if (*(cbuf->buffer + j + i) != *(data + (idx + j)) 
+                                || (idx + j) == file_len - 1)
                 break;
-            }
         }
+
         if ((j - 1) > match_length) {
             match_index = i;
             match_length = (j - 1);
@@ -288,218 +318,216 @@ int circular_buf_word_index(struct circular_buf_t *cbuf, uint8_t *data,
     }
 }
 
-void lempel_ziv_encode(char *in_file_name, char *out_file_name)
+struct lemp_ziv_t *lempel_ziv_encode(FILE *input_file)
 {
-    FILE 		            *input_file, 
-				            *output_file;
     size_t 		            file_len, 
                             j, 
-                            prev;
-    uint16_t 	            buf_idx, 
-				            seek_idx,
-				            next_reference;
+                            prev,
+                            tmp_cap;
+    uint16_t 	            buf_idx,
+                            seek_idx,
+                            tmp_len;
     uint8_t 	            *file_buffer,
                             *circ_buffer,
                             *tmp_buff;
     struct circular_buf_t   *cbuf;
-
-    input_file = fopen(in_file_name, "rb");
-    if (input_file == NULL) {
-        fprintf(stderr, "The input file was not found.\n");
-        return;
-    }
-
-    printf("YOO");
+    struct lemp_ziv_t       *lz;
 
     fseek(input_file, 0, SEEK_END);
     file_len = ftell(input_file); 
     rewind(input_file);
-    file_buffer = (uint8_t *)(malloc(file_len * sizeof(uint8_t)));
+    file_buffer = (uint8_t *)(malloc(file_len));
     fread(file_buffer, file_len, 1, input_file);
 
-    fclose(input_file);
+    lz = malloc_lemp_ziv();
 
-    output_file = fopen(out_file_name, "wb");
-    if (output_file == NULL) {
-        fprintf(stderr, "The output file could not be created / was not found.\n");
-        free(file_buffer);
-        return;
-    }
-
-    circ_buffer = malloc(CIRCULAR_BUFFER_CAPACITY * sizeof(uint8_t));
+    circ_buffer =  (uint8_t *)(malloc(CIRCULAR_BUFFER_CAPACITY));
     cbuf = circular_buf_init(circ_buffer);
-    tmp_buff = malloc(CIRCULAR_BUFFER_CAPACITY * sizeof(uint8_t));
 
-    next_reference = 0; prev = 0; j = 0; buf_idx = 0; seek_idx = 0;
+    tmp_buff =  (uint8_t *)(malloc(CIRCULAR_BUFFER_CAPACITY));
+    tmp_cap = CIRCULAR_BUFFER_CAPACITY;
+
+    prev = 0; j = 0; buf_idx = 0; seek_idx = 0; tmp_len = 0;
 
     while (j < file_len) {
 
         if (circular_buf_word_index(cbuf, file_buffer, &buf_idx,
                                      &seek_idx, j, file_len) != -1) {
 
-            next_reference = j - prev;
-            fwrite(&next_reference, 2, 1, output_file);
-            fwrite(tmp_buff, next_reference, 1, output_file);
-            fwrite(&buf_idx, 2, 1, output_file);
+            if (lz->r_counter + 3 > lz->r_max - 1) {
+                lz->r_max *= 2;
+                lz->references = realloc(lz->references, 
+                                            lz->r_max * sizeof(uint16_t));
+            }
+
+            *(lz->references + lz->r_counter++) = tmp_len;
+
+            for (int i = 0; i < tmp_len; i++)
+                *(lz->bytes + lz->b_counter++) = *(tmp_buff + i);
+
+            *(lz->references + lz->r_counter++) = buf_idx;
 
             if (seek_idx > file_len - j)
                 seek_idx = file_len - j;
                 
-            fwrite(&seek_idx, 2, 1, output_file);
+            *(lz->references + lz->r_counter++) = seek_idx;
 
             for (int i = 0; i < seek_idx; i++) {
                 circular_buf_put(cbuf, *(cbuf->buffer + buf_idx + i));
                 j++;
             }
 
+            tmp_len = 0;
             memset(tmp_buff, 0, CIRCULAR_BUFFER_CAPACITY);
             prev = j;
 
         } else {
+            if (tmp_len == CIRCULAR_BUFFER_CAPACITY - 1) {
+
+                if (lz->r_counter + 3 > lz->r_max - 1) {
+                    lz->r_max *= 2;
+                    lz->references = realloc(lz->references, lz->r_max * sizeof(uint16_t));
+                }
+
+                *(lz->references + lz->r_counter++) = tmp_len;
+
+                for (int i = 0; i < tmp_len; i++)
+                    *(lz->bytes + lz->b_counter++) = *(tmp_buff + i);
+
+                buf_idx = 0;
+                seek_idx = 0;
+                tmp_len = 0;
+                memset(tmp_buff, 0, CIRCULAR_BUFFER_CAPACITY);
+
+                *(lz->references + lz->r_counter++) = buf_idx;
+
+                if (seek_idx > file_len - j)
+                    seek_idx = file_len - j;
+                    
+                *(lz->references + lz->r_counter++) = seek_idx;
+            }
 
             circular_buf_put(cbuf, *(file_buffer + j));
-            *(tmp_buff + (j - prev)) = *(file_buffer + j);
+            *(tmp_buff + (tmp_len)) = *(file_buffer + j);
+            tmp_len++;
             j++;
-
         }
     }
-    if (j - prev > 0) {
-        next_reference = j - prev;
-        fwrite(&next_reference, 2, 1, output_file);
-        for (int i = 0; i < next_reference; i++) {
-            fwrite(file_buffer + prev + i, 1, 1, output_file);
+    if (tmp_len > 0) {
+        if (lz->r_counter == lz->r_max - 1) {
+            lz->r_max++;
+            lz->references = realloc(lz->references, lz->r_max * sizeof(uint16_t));
         }
+
+        *(lz->references + lz->r_counter++) = tmp_len;
+
+        for (int i = 0; i < tmp_len; i++)
+            *(lz->bytes + lz->b_counter++) = *(file_buffer + prev + i);
     }
 
-    free(cbuf);
     free(circ_buffer);
+    free(cbuf);
     free(file_buffer);
     free(tmp_buff);
-    fclose(output_file);
-    remove(in_file_name);
+
+    return lz;
 }
 
-void lempel_ziv_decode(char *in_file_name, char *out_file_name)
+void lempel_ziv_decode(uint8_t *data, size_t data_len, FILE *output_file)
 {
-    FILE 		            *input_file, 
-				            *output_file;
-    size_t 		            file_len, 
-				            j, 
-				            prev;
-    uint16_t 	            buf_idx, 
-				            seek_idx, 
-				            next_dupe;
-    uint8_t 	            *circ_buffer,
-				            ch;
+    uint16_t 	            buf_idx,
+                            seek_idx;
+    uint8_t 	            *circ_buffer;
+    size_t                  cur_pos;
 	int 		            i;
     struct circular_buf_t   *cbuf;
+    struct lemp_ziv_t       *lz;
 
-    input_file = fopen(in_file_name, "rb");
-    if (input_file == NULL) {
-        fprintf(stderr, "The input file was not found.\n");
-        return;
+    lz = malloc_lemp_ziv();
+
+    cur_pos = 0;
+
+    for (i = 0; i < 4; i++) {
+        u32_convertion.u8[i] = *(data + cur_pos++);
+    }
+    
+    lz->r_max = u32_convertion.u32;
+
+    lz->references = realloc(lz->references, lz->r_max * sizeof(uint16_t));
+
+    for (i = 0; i < lz->r_max; i++) {
+        for (int j = 0; j < 2; j++)
+            u16_convertion.u8[j] = *(data + cur_pos++);
+        *(lz->references + i) = u16_convertion.u16;
     }
 
-	next_dupe = 0;
+    for (i = 0; i < 4; i++) {
+        u32_convertion.u8[i] = *(data + cur_pos++);
+    }
+    
+    lz->b_max = u32_convertion.u32;
 
-    fseek(input_file, 0, SEEK_END);
-    file_len = ftell(input_file); 
-    rewind(input_file);
-    fread(&next_dupe, 2, 1, input_file);
+    lz->bytes = realloc(lz->bytes, lz->b_max);
 
-    circ_buffer = malloc(CIRCULAR_BUFFER_CAPACITY * sizeof(uint8_t));
+    for (int i = 0; i < lz->b_max; i++)
+        *(lz->bytes + i) = *(data + cur_pos++);
+
+    circ_buffer = malloc(CIRCULAR_BUFFER_CAPACITY);
     cbuf = circular_buf_init(circ_buffer);
 
+    buf_idx = 0; 
+    seek_idx = 0;
 
-    j = 0; buf_idx = 0; seek_idx = 0; ch = 0;
-	
-    output_file = fopen(out_file_name, "wb");
-    if (output_file == NULL) {
-        fprintf(stderr, "The output file could not be created / was not found.\n");
-        free(circ_buffer);
-        free(cbuf);
-        return;
-    }
-
-    while (j < file_len) {
-        for (i = 0; i < next_dupe; i++) {
-            fread(&ch, 1, 1, input_file);
-            fwrite(&ch, 1, 1, output_file);
-            circular_buf_put(cbuf, ch);
-            j++;
+    while (lz->b_counter < lz->b_max) {
+        for (i = 0; i < *(lz->references + lz->r_counter); i++) {
+            fputc(*(lz->bytes + lz->b_counter), output_file);
+            circular_buf_put(cbuf, *(lz->bytes + lz->b_counter));
+            lz->b_counter++;
         }
 
-        fread(&buf_idx, 2, 1, input_file);
-        fread(&seek_idx, 2, 1, input_file);
+        if (lz->b_counter == lz->b_max)
+            break;
 
+        lz->r_counter++;
+
+        buf_idx = *(lz->references + lz->r_counter);
+        lz->r_counter++;
+
+        seek_idx = *(lz->references + lz->r_counter);
+        lz->r_counter++;
+        
         for (i = 0; i < seek_idx; i++) {
             circular_buf_put(cbuf, *(cbuf->buffer + buf_idx + i));
-            fwrite((cbuf->buffer + buf_idx + i), 1, 1, output_file);
+            fputc(*(cbuf->buffer + buf_idx + i), output_file);
         }
-
-        fread(&next_dupe, 2, 1, input_file);
-        j += 6;
-        buf_idx = 0; seek_idx = 0;
     }
 
     free(circ_buffer);
     free(cbuf);
-    fclose(input_file);
-    fclose(output_file);
-    remove(in_file_name);
 }
 
-void huff_encode(char *in_file_name, char *out_file_name)
+struct huffman_t *huff_encode(uint8_t *data, size_t data_len)
 {
-    FILE				*input_file,
-                        *output_file;
-	uint8_t 			*file_buffer,
-						*s,
+	uint8_t 			*s,
 	                    code[ASCII],
                         cur_byte;
-	size_t 				file_len,
-						j,
+	size_t 				j,
                         i;
 	struct huffman_t 	*huff;
 	struct huff_node_t 	*root;
 
-    input_file = fopen(in_file_name, "rb");
-    if (input_file == NULL) {
-        fprintf(stderr, "The input file was not found.\n");
-        return;
-    }
-
-	fseek(input_file, 0, SEEK_END);
-    file_len = ftell(input_file); 
-    rewind(input_file);
-    file_buffer = (uint8_t *)(malloc(file_len * sizeof(uint8_t)));
-    fread(file_buffer, file_len, 1, input_file);
-    fclose(input_file);
-
 	huff = malloc_huff();
 
-	huff->freq = find_freq(file_buffer, file_len);
+	huff->freq = find_freq(data, data_len);
 
 	root = construct_huff_tree(huff);
 
 	create_huff_codes(huff, root, code, 0);
 
-	output_file = fopen(out_file_name, "wb");
-    if (output_file == NULL) {
-        fprintf(stderr, "The output file could not be created / was not found.\n");
-        free(huff->freq);
-        free(huff);
-        free(root);
-        free(file_buffer);
-        return;
-    }
-
-	fwrite(huff->freq, 4, ASCII, output_file);
-
 	cur_byte = 0;
 
-	for (j = 0; j < file_len; j++) {
-        for (s = *(huff->bitsets + *(file_buffer + j)); *s; s++) {
+	for (j = 0; j < data_len; j++) {
+        for (s = *(huff->bitsets + *(data + j)); *s; s++) {
             cur_byte <<= 1;
 
             if (*s == '1') 
@@ -508,7 +536,7 @@ void huff_encode(char *in_file_name, char *out_file_name)
             huff->bitset_pos++;
 
             if (huff->bitset_pos == 8) {
-                fputc(cur_byte, output_file);
+                *(huff->bytes + huff->bitset_tot) = cur_byte;
                 huff->bitset_tot++;
                 huff->bitset_pos = 0;
                 cur_byte = 0;
@@ -522,21 +550,16 @@ void huff_encode(char *in_file_name, char *out_file_name)
 		huff->bitset_pos++;
 
 		if (huff->bitset_pos == 8)
-			fputc(cur_byte, output_file);
+            *(huff->bytes + huff->bitset_tot) = cur_byte;
 	}
 
-	fclose(output_file);
-    remove(in_file_name);
-	free(file_buffer);
-    free(huff->freq);
-    free(huff);
 	free(root);
+
+    return huff;
 }
 
-void huff_decode(char *in_file_name, char *out_file_name)
+struct huffman_t *huff_decode(FILE *input_file)
 {
-    FILE				*input_file,
-                        *output_file;
 	uint8_t 			*file_buffer,
                         last_pos;
 	size_t 				file_len,
@@ -546,14 +569,6 @@ void huff_decode(char *in_file_name, char *out_file_name)
 	struct huff_node_t 	*root,
                         *curr;
 
-
-    input_file = fopen(in_file_name, "rb");
-    if (input_file == NULL) {
-        fprintf(stderr, "The input file was not found.\n");
-        return;
-    }
-
-	
     fseek(input_file, 0, SEEK_END);
 
     file_len = ftell(input_file) - (4 * ASCII);
@@ -569,18 +584,12 @@ void huff_decode(char *in_file_name, char *out_file_name)
 	fread(huff->freq, ASCII, 4, input_file);
     
 	fread(file_buffer, file_len, 1, input_file);
-
-    fclose(input_file);
 	
 	root = construct_huff_tree(huff);
 
-	uint8_t bits[file_len][8];
-
-    output_file = fopen(out_file_name, "wb");
-    if (output_file == NULL) {
-        fprintf(stderr, "The output file could not be created / was not found.\n");
-        return;
-    }
+    uint8_t **bits = (uint8_t **)(malloc(file_len * sizeof(uint8_t *)));
+    for (i = 0; i < file_len; i++)
+        *(bits + i) = (uint8_t *)(calloc(8, 1));
 	
 	j = 0;
 	
@@ -600,7 +609,8 @@ void huff_decode(char *in_file_name, char *out_file_name)
 			curr = curr->left;
 
 		if (curr->left == NULL && curr->right == NULL) {
-			fputc(curr->c, output_file);
+            *(huff->bytes + huff->bitset_tot) = curr->c;
+            huff->bitset_tot++;
 			curr = root;
 		}
 
@@ -611,34 +621,259 @@ void huff_decode(char *in_file_name, char *out_file_name)
 		}
 	}
 
-    fclose(output_file);
-    remove(in_file_name);
-    free(huff->freq);
-    free(huff);
+    for (i = 0; i < file_len; i++)
+        free(*(bits + i));
+    free(bits);
 	free(file_buffer);
 	free(root);
-}
 
+    return huff;
+}
 
 int main(int argc, char **argv)
 {
-    if (argc != 4) {
-        fprintf(stderr, "commands: lzc\t|\tlzd\t|\thmc\t|\thmd\n");
+    FILE        *input,
+                *output;
+    if (argc != 4 || strcmp(*(argv + 1), *(argv + 2)) == 0) {
+        fprintf(stderr, "commands: cmp\t|\tdcmp\t|\tlz-cmp\t|\tlz-dcmp\t|\thm-cmp\t|\thm-dcmp\n");
         fprintf(stderr, "usage: %s <path_to_input_file> <path_to_output_file> <command> \n", *(argv));
-        fprintf(stderr, "example: %s file.txt file.lz.bin lz-c\n", *(argv));
+        fprintf(stderr, "example: %s file.txt file.lz lz-cmp\n", *(argv));
         return 1;
     }
 
-    if (strcmp(*(argv + 3), "lzc") == 0)
-        lempel_ziv_encode(*(argv + 1), *(argv + 2));
-    else if (strcmp(*(argv + 3), "hmc") == 0)
-        huff_encode(*(argv + 1), *(argv + 2));
-    else if (strcmp(*(argv + 3), "hmd") == 0)
-        huff_decode(*(argv + 1), *(argv + 2));
-    else if (strcmp(*(argv + 3), "lzd") == 0)
-        lempel_ziv_decode(*(argv + 1), *(argv + 2));
-    else {
-        fprintf(stderr, "commands: lzc\t|\tlzd\t|\thmc\t|\thmd\n");
+    if (strcmp(*(argv + 3), "lz-cmp") == 0) {
+
+        struct lemp_ziv_t   *lz;
+
+        input = fopen(*(argv + 1), "rb");
+        if (input == NULL) {
+            fprintf(stderr, "The input file was not found.\n");
+            return 1;
+        }
+
+        lz = lempel_ziv_encode(input);
+
+        fclose(input);
+
+        output = fopen(*(argv + 2), "wb");
+        if (output == NULL) {
+            fprintf(stderr, "The output file could not be created / was not found.\n");
+            return 1;
+        }
+
+        fwrite(&lz->r_counter, 4, 1, output);
+
+        for (int i = 0; i < lz->r_counter; i++)
+            fwrite(lz->references + i, 2, 1, output);
+
+        fwrite(&lz->b_counter, 4, 1, output);
+
+        for (int i = 0; i < lz->b_counter; i++)
+            fputc(*(lz->bytes + i), output);
+        
+        fclose(output);
+
+        free(lz->bytes);
+        free(lz->references);
+        free(lz);
+
+    } else if (strcmp(*(argv + 3), "lz-dcmp") == 0) {
+        
+        uint8_t             *data;
+        size_t              data_len;
+
+        input = fopen(*(argv + 1), "rb");
+        if (input == NULL) {
+            fprintf(stderr, "The input file was not found.\n");
+            return 1;
+        }
+
+        fseek(input, 0, SEEK_END);
+
+        data_len = ftell(input);
+
+        rewind(input);
+
+        data = (uint8_t *)(malloc(data_len * sizeof(uint8_t)));
+
+        fread(data, data_len, 1, input);
+
+        fclose(input);
+
+        output = fopen(*(argv + 2), "wb");
+        if (output == NULL) {
+            fprintf(stderr, "The output file could not be created / was not found.\n");
+            return 1;
+        }
+
+        lempel_ziv_decode(data, data_len, output);
+
+        free(data);
+
+        fclose(output);
+
+    } else if (strcmp(*(argv + 3), "hm-cmp") == 0) {
+
+        uint8_t             *data;
+        size_t              data_len;
+        struct huffman_t    *huff;
+
+        input = fopen(*(argv + 1), "rb");
+        if (input == NULL) {
+            fprintf(stderr, "The input file was not found.\n");
+            return 1;
+        }
+
+        fseek(input, 0, SEEK_END);
+
+        data_len = ftell(input);
+
+        rewind(input);
+
+        data = (uint8_t *)(malloc(data_len * sizeof(uint8_t)));
+
+        fread(data, data_len, 1, input);
+
+        fclose(input);
+
+        huff = huff_encode(data, data_len);
+
+        output = fopen(*(argv + 2), "wb");
+        if (output == NULL) {
+            fprintf(stderr, "The output file could not be created / was not found.\n");
+            return 1;
+        }
+
+        fwrite(huff->freq, 4, ASCII, output);
+
+        for(int i = 0; i < huff->bitset_tot; i++)
+            fputc(*(huff->bytes + i), output);
+
+        fclose(output);
+        free(huff->bytes);
+        free(huff->freq);
+        free(data);
+
+    } else if (strcmp(*(argv + 3), "hm-dcmp") == 0) {
+
+        struct huffman_t    *huff;
+
+        input = fopen(*(argv + 1), "rb");
+        if (input == NULL) {
+            fprintf(stderr, "The input file was not found.\n");
+            return 1;
+        }
+
+        huff = huff_decode(input);
+
+        fclose(input);
+
+        output = fopen(*(argv + 2), "wb");
+        if (output == NULL) {
+            fprintf(stderr, "The output file could not be created / was not found.\n");
+            return 1;
+        }
+
+        fwrite(huff->bytes, 1, huff->bitset_tot, output);
+
+        fclose(output);
+
+        free(huff->bytes);
+        free(huff->freq);
+        free(huff);
+
+    } else if (strcmp(*(argv + 3), "cmp") == 0) {
+
+        struct lemp_ziv_t   *lz;
+        struct huffman_t    *huff;
+        uint8_t             *data;
+        size_t              data_len,
+                            cur_pos;
+
+        input = fopen(*(argv + 1), "rb");
+        if (input == NULL) {
+            fprintf(stderr, "The input file was not found.\n");
+            return 1;
+        }
+
+        lz = lempel_ziv_encode(input);
+        fclose(input);
+
+        data_len = (size_t)(4 + 4 + lz->r_counter * 2 + lz->b_counter);
+
+        data = (uint8_t *)(malloc(data_len));
+
+        cur_pos = 0;
+
+        u32_convertion.u32 = lz->r_counter;
+
+        for (int i = 0; i < 4; i++)
+            *(data + cur_pos++) = u32_convertion.u8[i];
+
+        for (int i = 0; i < lz->r_counter; i++) {
+            u16_convertion.u16 = *(lz->references + i);
+            for (int j = 0; j < 2; j++)
+                *(data + cur_pos++) = u16_convertion.u8[j];
+        }
+
+        u32_convertion.u32 = lz->b_counter;
+
+        for (int i = 0; i < 4; i++)
+            *(data + cur_pos++) = u32_convertion.u8[i];
+
+        for (int i = 0; i < lz->b_counter; i++)
+            *(data + cur_pos++) = *(lz->bytes + i);
+
+        free(lz->bytes);
+        free(lz->references);
+        free(lz);
+
+        huff = huff_encode(data, data_len);
+
+        output = fopen(*(argv + 2), "wb");
+        if (output == NULL) {
+            fprintf(stderr, "The output file could not be created / was not found.\n");
+            return 1;
+        }
+
+        for (int i = 0; i < ASCII; i++)
+            fwrite(huff->freq + i, 4, 1, output);
+
+        for(int i = 0; i < huff->bitset_tot; i++)
+            fputc(*(huff->bytes + i), output);
+        
+        free(huff->bytes);
+        free(huff->freq);
+        free(huff);
+
+        fclose(output);
+
+    } else if (strcmp(*(argv + 3), "dcmp") == 0) {
+
+        struct huffman_t    *huff;
+
+        input = fopen(*(argv + 1), "rb");
+        if (input == NULL) {
+            fprintf(stderr, "The input file was not found.\n");
+            return 1;
+        }
+
+        huff = huff_decode(input);
+
+        fclose(input);
+
+        output = fopen(*(argv + 2), "wb");
+        if (output == NULL) {
+            fprintf(stderr, "The output file could not be created / was not found.\n");
+            return 1;
+        }
+
+        lempel_ziv_decode(huff->bytes, huff->bitset_tot - 1, output);
+
+        fclose(output);
+
+    } else {
+        fprintf(stderr, "commands: lz-compress\t|\thm-compress\t|\tlz-unpack\t|\thm-unpack\n");
         fprintf(stderr, "usage: %s <path_to_input_file> <path_to_output_file> <command> \n", *(argv));
         fprintf(stderr, "example: %s file.txt file.lz.bin lz-c\n", *(argv));
         return 1;
