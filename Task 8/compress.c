@@ -23,6 +23,13 @@ typedef struct circular_buf_t circular_buf_t;
 
 typedef struct lemp_ziv_t lemp_ziv_t;
 
+typedef struct file_data_t file_data_t;
+
+struct file_data_t {
+    uint8_t     *data;
+    size_t      data_len;
+};
+
 struct lemp_ziv_t {
     uint32_t     r_max;
     uint32_t     b_max;
@@ -318,26 +325,18 @@ int circular_buf_word_index(struct circular_buf_t *cbuf, uint8_t *data,
     }
 }
 
-struct lemp_ziv_t *lempel_ziv_encode(FILE *input_file)
+struct lemp_ziv_t *lempel_ziv_encode(struct file_data_t *fd)
 {
-    size_t 		            file_len, 
-                            j, 
+    size_t                  j, 
                             prev,
                             tmp_cap;
     uint16_t 	            buf_idx,
                             seek_idx,
                             tmp_len;
-    uint8_t 	            *file_buffer,
-                            *circ_buffer,
+    uint8_t 	            *circ_buffer,
                             *tmp_buff;
     struct circular_buf_t   *cbuf;
     struct lemp_ziv_t       *lz;
-
-    fseek(input_file, 0, SEEK_END);
-    file_len = ftell(input_file); 
-    rewind(input_file);
-    file_buffer = (uint8_t *)(malloc(file_len));
-    fread(file_buffer, file_len, 1, input_file);
 
     lz = malloc_lemp_ziv();
 
@@ -349,10 +348,10 @@ struct lemp_ziv_t *lempel_ziv_encode(FILE *input_file)
 
     prev = 0; j = 0; buf_idx = 0; seek_idx = 0; tmp_len = 0;
 
-    while (j < file_len) {
+    while (j < fd->data_len) {
 
-        if (circular_buf_word_index(cbuf, file_buffer, &buf_idx,
-                                     &seek_idx, j, file_len) != -1) {
+        if (circular_buf_word_index(cbuf, fd->data, &buf_idx,
+                                     &seek_idx, j, fd->data_len) != -1) {
 
             if (lz->r_counter + 3 > lz->r_max - 1) {
                 lz->r_max *= 2;
@@ -367,8 +366,8 @@ struct lemp_ziv_t *lempel_ziv_encode(FILE *input_file)
 
             *(lz->references + lz->r_counter++) = buf_idx;
 
-            if (seek_idx > file_len - j)
-                seek_idx = file_len - j;
+            if (seek_idx > fd->data_len - j)
+                seek_idx = fd->data_len - j;
                 
             *(lz->references + lz->r_counter++) = seek_idx;
 
@@ -401,14 +400,14 @@ struct lemp_ziv_t *lempel_ziv_encode(FILE *input_file)
 
                 *(lz->references + lz->r_counter++) = buf_idx;
 
-                if (seek_idx > file_len - j)
-                    seek_idx = file_len - j;
+                if (seek_idx > fd->data_len - j)
+                    seek_idx = fd->data_len - j;
                     
                 *(lz->references + lz->r_counter++) = seek_idx;
             }
 
-            circular_buf_put(cbuf, *(file_buffer + j));
-            *(tmp_buff + (tmp_len)) = *(file_buffer + j);
+            circular_buf_put(cbuf, *(fd->data + j));
+            *(tmp_buff + (tmp_len)) = *(fd->data + j);
             tmp_len++;
             j++;
         }
@@ -422,18 +421,17 @@ struct lemp_ziv_t *lempel_ziv_encode(FILE *input_file)
         *(lz->references + lz->r_counter++) = tmp_len;
 
         for (int i = 0; i < tmp_len; i++)
-            *(lz->bytes + lz->b_counter++) = *(file_buffer + prev + i);
+            *(lz->bytes + lz->b_counter++) = *(fd->data + prev + i);
     }
 
     free(circ_buffer);
     free(cbuf);
-    free(file_buffer);
     free(tmp_buff);
 
     return lz;
 }
 
-void lempel_ziv_decode(uint8_t *data, size_t data_len, FILE *output_file)
+struct lemp_ziv_t *lempel_ziv_decode(struct file_data_t *fd)
 {
     uint16_t 	            buf_idx,
                             seek_idx;
@@ -441,14 +439,17 @@ void lempel_ziv_decode(uint8_t *data, size_t data_len, FILE *output_file)
     size_t                  cur_pos;
 	int 		            i;
     struct circular_buf_t   *cbuf;
-    struct lemp_ziv_t       *lz;
+    struct lemp_ziv_t       *lz,
+                            *out;
 
     lz = malloc_lemp_ziv();
+
+    out = malloc_lemp_ziv();
 
     cur_pos = 0;
 
     for (i = 0; i < 4; i++) {
-        u32_convertion.u8[i] = *(data + cur_pos++);
+        u32_convertion.u8[i] = *(fd->data + cur_pos++);
     }
     
     lz->r_max = u32_convertion.u32;
@@ -457,12 +458,12 @@ void lempel_ziv_decode(uint8_t *data, size_t data_len, FILE *output_file)
 
     for (i = 0; i < lz->r_max; i++) {
         for (int j = 0; j < 2; j++)
-            u16_convertion.u8[j] = *(data + cur_pos++);
+            u16_convertion.u8[j] = *(fd->data + cur_pos++);
         *(lz->references + i) = u16_convertion.u16;
     }
 
     for (i = 0; i < 4; i++) {
-        u32_convertion.u8[i] = *(data + cur_pos++);
+        u32_convertion.u8[i] = *(fd->data + cur_pos++);
     }
     
     lz->b_max = u32_convertion.u32;
@@ -470,7 +471,7 @@ void lempel_ziv_decode(uint8_t *data, size_t data_len, FILE *output_file)
     lz->bytes = realloc(lz->bytes, lz->b_max);
 
     for (int i = 0; i < lz->b_max; i++)
-        *(lz->bytes + i) = *(data + cur_pos++);
+        *(lz->bytes + i) = *(fd->data + cur_pos++);
 
     circ_buffer = malloc(CIRCULAR_BUFFER_CAPACITY);
     cbuf = circular_buf_init(circ_buffer);
@@ -479,10 +480,10 @@ void lempel_ziv_decode(uint8_t *data, size_t data_len, FILE *output_file)
     seek_idx = 0;
 
     while (lz->b_counter < lz->b_max) {
+
         for (i = 0; i < *(lz->references + lz->r_counter); i++) {
-            fputc(*(lz->bytes + lz->b_counter), output_file);
-            circular_buf_put(cbuf, *(lz->bytes + lz->b_counter));
-            lz->b_counter++;
+            *(out->bytes + out->b_counter++) = *(lz->bytes + lz->b_counter);
+            circular_buf_put(cbuf, *(lz->bytes + lz->b_counter++));
         }
 
         if (lz->b_counter == lz->b_max)
@@ -490,23 +491,26 @@ void lempel_ziv_decode(uint8_t *data, size_t data_len, FILE *output_file)
 
         lz->r_counter++;
 
-        buf_idx = *(lz->references + lz->r_counter);
-        lz->r_counter++;
+        buf_idx = *(lz->references + lz->r_counter++);
 
-        seek_idx = *(lz->references + lz->r_counter);
-        lz->r_counter++;
+        seek_idx = *(lz->references + lz->r_counter++);
         
         for (i = 0; i < seek_idx; i++) {
             circular_buf_put(cbuf, *(cbuf->buffer + buf_idx + i));
-            fputc(*(cbuf->buffer + buf_idx + i), output_file);
+            *(out->bytes + out->b_counter++) = *(cbuf->buffer + buf_idx + i);
         }
     }
 
+    free(lz->bytes);
+    free(lz->references);
+    free(lz);
     free(circ_buffer);
     free(cbuf);
+
+    return out;
 }
 
-struct huffman_t *huff_encode(uint8_t *data, size_t data_len)
+struct huffman_t *huff_encode(struct file_data_t *fd)
 {
 	uint8_t 			*s,
 	                    code[ASCII],
@@ -518,7 +522,7 @@ struct huffman_t *huff_encode(uint8_t *data, size_t data_len)
 
 	huff = malloc_huff();
 
-	huff->freq = find_freq(data, data_len);
+	huff->freq = find_freq(fd->data, fd->data_len);
 
 	root = construct_huff_tree(huff);
 
@@ -526,8 +530,8 @@ struct huffman_t *huff_encode(uint8_t *data, size_t data_len)
 
 	cur_byte = 0;
 
-	for (j = 0; j < data_len; j++) {
-        for (s = *(huff->bitsets + *(data + j)); *s; s++) {
+	for (j = 0; j < fd->data_len; j++) {
+        for (s = *(huff->bitsets + *(fd->data + j)); *s; s++) {
             cur_byte <<= 1;
 
             if (*s == '1') 
@@ -550,7 +554,7 @@ struct huffman_t *huff_encode(uint8_t *data, size_t data_len)
 		huff->bitset_pos++;
 
 		if (huff->bitset_pos == 8)
-            *(huff->bytes + huff->bitset_tot) = cur_byte;
+            *(huff->bytes + huff->bitset_tot++) = cur_byte;
 	}
 
 	free(root);
@@ -558,51 +562,45 @@ struct huffman_t *huff_encode(uint8_t *data, size_t data_len)
     return huff;
 }
 
-struct huffman_t *huff_decode(FILE *input_file)
+struct huffman_t *huff_decode(struct file_data_t *fd)
 {
-	uint8_t 			*file_buffer,
-                        last_pos;
-	size_t 				file_len,
-						j,
-                        i;
+	uint8_t 			last_pos;
+	size_t 				j,
+                        i,
+                        cur_pos;
 	struct huffman_t 	*huff;
 	struct huff_node_t 	*root,
                         *curr;
-
-    fseek(input_file, 0, SEEK_END);
-
-    file_len = ftell(input_file) - (4 * ASCII);
-
-    rewind(input_file);
-
-    file_buffer = (uint8_t *)(malloc(file_len * sizeof(uint8_t)));
 
 	huff = malloc_huff();
 
 	huff->freq = (int *)(malloc(ASCII * sizeof(int)));
 
-	fread(huff->freq, ASCII, 4, input_file);
-    
-	fread(file_buffer, file_len, 1, input_file);
-	
+    cur_pos = 0;
+
+    for (i = 0; i < ASCII; i++) {
+        for (j = 0; j < 4; j++) {
+            u32_convertion.u8[j] = *(fd->data + cur_pos++);
+        }
+        *(huff->freq + i) = u32_convertion.u32;
+    }
+    	
 	root = construct_huff_tree(huff);
 
-    uint8_t **bits = (uint8_t **)(malloc(file_len * sizeof(uint8_t *)));
-    for (i = 0; i < file_len; i++)
+    uint8_t **bits = (uint8_t **)(malloc(fd->data_len * sizeof(uint8_t *)));
+    for (i = 0; i < fd->data_len; i++)
         *(bits + i) = (uint8_t *)(calloc(8, 1));
-	
-	j = 0;
-	
+		
     curr = root;
 
-	for (j = 0; j < file_len; j++) {
+	for (j = cur_pos; j < fd->data_len; j++) {
 		for (int i = 7; i >= 0; --i) {
-			*(*(bits + j) + i) = *(file_buffer + j) & (1 << i)  ? '1' : '0';
+			*(*(bits + j) + i) = *(fd->data + j) & (1 << i)  ? '1' : '0';
 		}
 	}
 
-	j = 0; i = 7;
-	while (j < file_len) {
+	j = cur_pos; i = 7;
+	while (j < fd->data_len) {
 		if (*(*(bits + j) + i) == '1')
 			curr = curr->right;
 		else
@@ -621,19 +619,38 @@ struct huffman_t *huff_decode(FILE *input_file)
 		}
 	}
 
-    for (i = 0; i < file_len; i++)
+    for (i = cur_pos; i < fd->data_len; i++)
         free(*(bits + i));
+
     free(bits);
-	free(file_buffer);
 	free(root);
 
     return huff;
+}
+
+struct file_data_t *get_file_data(FILE *input)
+{
+    struct file_data_t *res = (struct file_data_t *)
+                                (malloc(sizeof(struct file_data_t)));
+
+    fseek(input, 0, SEEK_END);
+
+    res->data_len = ftell(input);
+
+    rewind(input);
+
+    res->data = (uint8_t *)(malloc(res->data_len * sizeof(uint8_t)));
+
+    fread(res->data, res->data_len, 1, input);
+
+    return res;
 }
 
 int main(int argc, char **argv)
 {
     FILE        *input,
                 *output;
+    
     if (argc != 4 || strcmp(*(argv + 1), *(argv + 2)) == 0) {
         fprintf(stderr, "commands: cmp\t|\tdcmp\t|\tlz-cmp\t|\tlz-dcmp\t|\thm-cmp\t|\thm-dcmp\n");
         fprintf(stderr, "usage: %s <path_to_input_file> <path_to_output_file> <command> \n", *(argv));
@@ -644,16 +661,19 @@ int main(int argc, char **argv)
     if (strcmp(*(argv + 3), "lz-cmp") == 0) {
 
         struct lemp_ziv_t   *lz;
-
+        struct file_data_t  *fd;
+        
         input = fopen(*(argv + 1), "rb");
         if (input == NULL) {
             fprintf(stderr, "The input file was not found.\n");
             return 1;
         }
 
-        lz = lempel_ziv_encode(input);
+        fd = get_file_data(input);
 
         fclose(input);
+
+        lz = lempel_ziv_encode(fd);
 
         output = fopen(*(argv + 2), "wb");
         if (output == NULL) {
@@ -673,14 +693,16 @@ int main(int argc, char **argv)
         
         fclose(output);
 
+        free(fd->data);
+        free(fd);
         free(lz->bytes);
         free(lz->references);
         free(lz);
 
     } else if (strcmp(*(argv + 3), "lz-dcmp") == 0) {
         
-        uint8_t             *data;
-        size_t              data_len;
+        struct lemp_ziv_t   *lz;
+        struct file_data_t  *fd;
 
         input = fopen(*(argv + 1), "rb");
         if (input == NULL) {
@@ -688,17 +710,11 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        fseek(input, 0, SEEK_END);
-
-        data_len = ftell(input);
-
-        rewind(input);
-
-        data = (uint8_t *)(malloc(data_len * sizeof(uint8_t)));
-
-        fread(data, data_len, 1, input);
+        fd = get_file_data(input);
 
         fclose(input);
+
+        lz = lempel_ziv_decode(fd);
 
         output = fopen(*(argv + 2), "wb");
         if (output == NULL) {
@@ -706,17 +722,21 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        lempel_ziv_decode(data, data_len, output);
-
-        free(data);
+        for (int i = 0; i < lz->b_counter; i++)
+            fputc(*(lz->bytes + i), output);
 
         fclose(output);
 
+        free(lz->references);
+        free(lz->bytes);
+        free(lz);
+        free(fd->data);
+        free(fd);
+
     } else if (strcmp(*(argv + 3), "hm-cmp") == 0) {
 
-        uint8_t             *data;
-        size_t              data_len;
         struct huffman_t    *huff;
+        struct file_data_t  *fd;
 
         input = fopen(*(argv + 1), "rb");
         if (input == NULL) {
@@ -724,19 +744,11 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        fseek(input, 0, SEEK_END);
-
-        data_len = ftell(input);
-
-        rewind(input);
-
-        data = (uint8_t *)(malloc(data_len * sizeof(uint8_t)));
-
-        fread(data, data_len, 1, input);
+        fd = get_file_data(input);
 
         fclose(input);
 
-        huff = huff_encode(data, data_len);
+        huff = huff_encode(fd);
 
         output = fopen(*(argv + 2), "wb");
         if (output == NULL) {
@@ -752,11 +764,13 @@ int main(int argc, char **argv)
         fclose(output);
         free(huff->bytes);
         free(huff->freq);
-        free(data);
+        free(fd->data);
+        free(fd);
 
     } else if (strcmp(*(argv + 3), "hm-dcmp") == 0) {
 
         struct huffman_t    *huff;
+        struct file_data_t  *fd;
 
         input = fopen(*(argv + 1), "rb");
         if (input == NULL) {
@@ -764,9 +778,11 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        huff = huff_decode(input);
+        fd = get_file_data(input);
 
         fclose(input);
+
+        huff = huff_decode(fd);
 
         output = fopen(*(argv + 2), "wb");
         if (output == NULL) {
@@ -778,6 +794,8 @@ int main(int argc, char **argv)
 
         fclose(output);
 
+        free(fd->data);
+        free(fd);
         free(huff->bytes);
         free(huff->freq);
         free(huff);
@@ -786,9 +804,8 @@ int main(int argc, char **argv)
 
         struct lemp_ziv_t   *lz;
         struct huffman_t    *huff;
-        uint8_t             *data;
-        size_t              data_len,
-                            cur_pos;
+        struct file_data_t  *fd;
+        size_t              cur_pos;
 
         input = fopen(*(argv + 1), "rb");
         if (input == NULL) {
@@ -796,39 +813,44 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        lz = lempel_ziv_encode(input);
+        fd = get_file_data(input);
+
         fclose(input);
 
-        data_len = (size_t)(4 + 4 + lz->r_counter * 2 + lz->b_counter);
+        lz = lempel_ziv_encode(fd);
 
-        data = (uint8_t *)(malloc(data_len));
+        free(fd->data);
+
+        fd->data_len = (size_t)(4 + 4 + lz->r_counter * 2 + lz->b_counter);
+
+        fd->data = (uint8_t *)(malloc(fd->data_len));
 
         cur_pos = 0;
 
         u32_convertion.u32 = lz->r_counter;
 
         for (int i = 0; i < 4; i++)
-            *(data + cur_pos++) = u32_convertion.u8[i];
+            *(fd->data + cur_pos++) = u32_convertion.u8[i];
 
         for (int i = 0; i < lz->r_counter; i++) {
             u16_convertion.u16 = *(lz->references + i);
             for (int j = 0; j < 2; j++)
-                *(data + cur_pos++) = u16_convertion.u8[j];
+                *(fd->data + cur_pos++) = u16_convertion.u8[j];
         }
 
         u32_convertion.u32 = lz->b_counter;
 
         for (int i = 0; i < 4; i++)
-            *(data + cur_pos++) = u32_convertion.u8[i];
+            *(fd->data + cur_pos++) = u32_convertion.u8[i];
 
         for (int i = 0; i < lz->b_counter; i++)
-            *(data + cur_pos++) = *(lz->bytes + i);
+            *(fd->data + cur_pos++) = *(lz->bytes + i);
 
         free(lz->bytes);
         free(lz->references);
         free(lz);
 
-        huff = huff_encode(data, data_len);
+        huff = huff_encode(fd);
 
         output = fopen(*(argv + 2), "wb");
         if (output == NULL) {
@@ -842,6 +864,8 @@ int main(int argc, char **argv)
         for(int i = 0; i < huff->bitset_tot; i++)
             fputc(*(huff->bytes + i), output);
         
+        free(fd->data);
+        free(fd);
         free(huff->bytes);
         free(huff->freq);
         free(huff);
@@ -850,7 +874,9 @@ int main(int argc, char **argv)
 
     } else if (strcmp(*(argv + 3), "dcmp") == 0) {
 
+        struct lemp_ziv_t   *lz;
         struct huffman_t    *huff;
+        struct file_data_t  *fd;
 
         input = fopen(*(argv + 1), "rb");
         if (input == NULL) {
@@ -858,9 +884,18 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        huff = huff_decode(input);
+        fd = get_file_data(input);
 
         fclose(input);
+
+        huff = huff_decode(fd);
+
+        fd->data = huff->bytes;
+        fd->data_len = huff->bitset_tot;
+
+        lz = lempel_ziv_decode(fd);
+
+        printf("Bytes: %d\n", lz->b_counter);
 
         output = fopen(*(argv + 2), "wb");
         if (output == NULL) {
@@ -868,9 +903,17 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        lempel_ziv_decode(huff->bytes, huff->bitset_tot - 1, output);
+        for (int i = 0; i < lz->b_counter; i++)
+            fputc(*(lz->bytes + i), output);
 
         fclose(output);
+
+        free(huff->bytes);
+        free(huff->freq);
+        free(huff);
+        free(lz->bytes);
+        free(lz->references);
+        free(lz);
 
     } else {
         fprintf(stderr, "commands: lz-compress\t|\thm-compress\t|\tlz-unpack\t|\thm-unpack\n");
