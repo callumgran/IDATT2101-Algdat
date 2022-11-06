@@ -258,6 +258,7 @@ void circular_buf_reset(struct circular_buf_t *cbuf)
 {
     cbuf->head = 0;
     cbuf->tail = 0;
+    cbuf->full = false;
 }
 
 struct circular_buf_t *circular_buf_init(uint8_t* buffer)
@@ -275,7 +276,7 @@ struct circular_buf_t *circular_buf_init(uint8_t* buffer)
 
 static void advance_pointer(struct circular_buf_t *cbuf)
 {
-	if(cbuf->full) {
+	if (cbuf->full) {
 		if (++(cbuf->tail) == cbuf->max) { 
             cbuf->tail = 0;
         }
@@ -298,15 +299,21 @@ int circular_buf_word_index(struct circular_buf_t *cbuf, uint8_t *data,
     int         match_index,
                 match_length,
                 i,
-                j;
+                j,
+                limit;
 
     match_index = -1;
     match_length = REFERENCE_THRESHOLD;
+    
+    if (cbuf->full) {
+        limit = CIRCULAR_BUFFER_CAPACITY;
+    } else {
+        limit = cbuf->head;
+    }
 
-    for (i = 0; i < cbuf->head; i++) {
-        
-        for (j = 0; j < UINT16_MAX; j++) {
-            if (*(cbuf->buffer + j + i) != *(data + (idx + j)) 
+    for (i = 0; i < limit; i++) {
+        for (j = 0; j < limit; j++) {
+            if (*(cbuf->buffer + i + j) != *(data + (idx + j)) 
                                 || (idx + j) == file_len - 1)
                 break;
         }
@@ -693,6 +700,8 @@ int main(int argc, char **argv)
         
         fclose(output);
 
+        printf("The file %.3f%% of the original size.\n", (double)lz->b_counter/fd->data_len);
+
         free(fd->data);
         free(fd);
         free(lz->bytes);
@@ -761,6 +770,8 @@ int main(int argc, char **argv)
         for(int i = 0; i < huff->bitset_tot; i++)
             fputc(*(huff->bytes + i), output);
 
+        printf("The file %.3f%% of the original size.\n", (double)huff->bitset_tot/fd->data_len);
+
         fclose(output);
         free(huff->bytes);
         free(huff->freq);
@@ -805,7 +816,8 @@ int main(int argc, char **argv)
         struct lemp_ziv_t   *lz;
         struct huffman_t    *huff;
         struct file_data_t  *fd;
-        size_t              cur_pos;
+        size_t              cur_pos,
+                            original_len;
 
         input = fopen(*(argv + 1), "rb");
         if (input == NULL) {
@@ -820,6 +832,7 @@ int main(int argc, char **argv)
         lz = lempel_ziv_encode(fd);
 
         free(fd->data);
+        original_len = fd->data_len;
 
         fd->data_len = (size_t)(4 + 4 + lz->r_counter * 2 + lz->b_counter);
 
@@ -864,6 +877,7 @@ int main(int argc, char **argv)
         for(int i = 0; i < huff->bitset_tot; i++)
             fputc(*(huff->bytes + i), output);
         
+        printf("The file %.3f%% of the original size.\n", (double)huff->bitset_tot/original_len);
         free(fd->data);
         free(fd);
         free(huff->bytes);
@@ -895,8 +909,6 @@ int main(int argc, char **argv)
 
         lz = lempel_ziv_decode(fd);
 
-        printf("Bytes: %d\n", lz->b_counter);
-
         output = fopen(*(argv + 2), "wb");
         if (output == NULL) {
             fprintf(stderr, "The output file could not be created / was not found.\n");
@@ -916,7 +928,7 @@ int main(int argc, char **argv)
         free(lz);
 
     } else {
-        fprintf(stderr, "commands: lz-compress\t|\thm-compress\t|\tlz-unpack\t|\thm-unpack\n");
+        fprintf(stderr, "commands: cmp\t|\tdcmp\t|\tlz-cmp\t|\tlz-dcmp\t|\thm-cmp\t|\thm-dcmp\n");
         fprintf(stderr, "usage: %s <path_to_input_file> <path_to_output_file> <command> \n", *(argv));
         fprintf(stderr, "example: %s file.txt file.lz.bin lz-c\n", *(argv));
         return 1;
