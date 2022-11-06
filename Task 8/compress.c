@@ -71,12 +71,12 @@ struct huffman_t {
 union u32_convertion {
     uint32_t    u32;
     uint8_t     u8[4];
-} u32_convertion;
+};
 
 union u16_convertion {
     uint16_t    u16;
     uint8_t     u8[2];
-} u16_convertion;
+};
 
 struct heap_t *malloc_heap(int capacity)
 {
@@ -448,6 +448,8 @@ struct lemp_ziv_t *lempel_ziv_decode(struct file_data_t *fd)
     struct circular_buf_t   *cbuf;
     struct lemp_ziv_t       *lz,
                             *out;
+    union u32_convertion    u32_convertion;
+    union u16_convertion    u16_convertion;
 
     lz = malloc_lemp_ziv();
 
@@ -578,6 +580,7 @@ struct huffman_t *huff_decode(struct file_data_t *fd)
 	struct huffman_t 	*huff;
 	struct huff_node_t 	*root,
                         *curr;
+    union u32_convertion    u32_convertion;
 
 	huff = malloc_huff();
 
@@ -700,7 +703,7 @@ int main(int argc, char **argv)
         
         fclose(output);
 
-        printf("The file %.3f%% of the original size.\n", (double)lz->b_counter/fd->data_len);
+        printf("The file %.3f%% of the original size.\n", ((double)(100 * lz->b_counter)/fd->data_len));
 
         free(fd->data);
         free(fd);
@@ -770,7 +773,7 @@ int main(int argc, char **argv)
         for(int i = 0; i < huff->bitset_tot; i++)
             fputc(*(huff->bytes + i), output);
 
-        printf("The file %.3f%% of the original size.\n", (double)huff->bitset_tot/fd->data_len);
+        printf("The file %.3f%% of the original size.\n", ((double)(100 * huff->bitset_tot)/fd->data_len));
 
         fclose(output);
         free(huff->bytes);
@@ -813,11 +816,13 @@ int main(int argc, char **argv)
 
     } else if (strcmp(*(argv + 3), "cmp") == 0) {
 
-        struct lemp_ziv_t   *lz;
-        struct huffman_t    *huff;
-        struct file_data_t  *fd;
-        size_t              cur_pos,
-                            original_len;
+        struct lemp_ziv_t       *lz;
+        struct huffman_t        *huff;
+        struct file_data_t      *fd;
+        size_t                  cur_pos,
+                                original_len;
+        union u32_convertion    u32_convertion;
+        union u16_convertion    u16_convertion;
 
         input = fopen(*(argv + 1), "rb");
         if (input == NULL) {
@@ -877,7 +882,7 @@ int main(int argc, char **argv)
         for(int i = 0; i < huff->bitset_tot; i++)
             fputc(*(huff->bytes + i), output);
         
-        printf("The file %.3f%% of the original size.\n", (double)huff->bitset_tot/original_len);
+        printf("The file %.3f%% of the original size.\n", ((double)(100 * huff->bitset_tot)/original_len));
         free(fd->data);
         free(fd);
         free(huff->bytes);
